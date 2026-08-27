@@ -241,6 +241,7 @@ class Settings(BaseSettings):
     SEARCH_RESULTS_LIMIT: int = 1000
     SEARCH_CACHE_TTL: int = 300
     SEARCH_CONCURRENT_REQUESTS: int = 10
+    TEST_DATABASE_URL = "postgresql+asyncpg://chronos_user:chronos_pass@localhost:5432/chronos_test"
     
     @validator("ENVIRONMENT")
     def validate_environment(cls, v):
