@@ -151,8 +151,14 @@ async def login(
             "username": user.username,
             "full_name": user.full_name,
             "role": user.role.value,
+            "is_active": user.is_active,
+            "is_verified": user.is_verified,
             "is_premium": user.is_premium,
             "premium_until": user.premium_until.isoformat() if user.premium_until else None,
+            "created_at": user.created_at.isoformat(),
+            "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
+            "searches_today": user.searches_today,
+            "daily_search_limit": user.daily_search_limit,
         }
     )
 
@@ -190,7 +196,14 @@ async def refresh_token(
             "username": user.username,
             "full_name": user.full_name,
             "role": user.role.value,
+            "is_active": user.is_active,
+            "is_verified": user.is_verified,
             "is_premium": user.is_premium,
+            "premium_until": user.premium_until.isoformat() if user.premium_until else None,
+            "created_at": user.created_at.isoformat(),
+            "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
+            "searches_today": user.searches_today,
+            "daily_search_limit": user.daily_search_limit,
         }
     )
 
