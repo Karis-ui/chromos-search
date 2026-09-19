@@ -85,7 +85,7 @@ export interface ResponseHeaders {
     [key: string]: string | 'undefined';
 }
 
-export interface onUploadProgress {
+export interface UploadProgress {
     loaded: number;
     total: number;
     percentage: number;
@@ -94,7 +94,7 @@ export interface onUploadProgress {
 }
 
 export interface UploadOptions {
-    onProgress?: (progress: onUploadProgress) => void;
+    onProgress?: (progress: UploadProgress) => void;
     onSuccess?: (response: any) => void;
     onError?: (error: any) => void;
     abortSignal?: AbortSignal;
@@ -115,6 +115,21 @@ export interface WebSocketMessage<T = any> {
     data: T;
     timestamp: string;
     id?: string;
+}
+
+export interface WebSocketConfig<T = any> {
+    url: string;
+    protocols?: string[];
+    headers?: Record<string, string>;
+    timeout?: number;
+    data?: T;
+}
+
+export interface WebSocketHandler<T = any> {
+    onMessage: (event: WebSocketMessage<T>) => void;
+    onOpen?: (event: WebSocketEvent<T>) => void;
+    onClose?: (event: WebSocketEvent<T>) => void;
+    onError?: (event: WebSocketEvent<T>) => void;
 }
 
 export interface WebSocketEvent<T = any> {
