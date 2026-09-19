@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 
-interface User {
+export interface User {
     id: string;
     email: string;
     username: string;
@@ -18,7 +18,7 @@ interface User {
     daily_search_limit: number;
 }
 
-interface AuthState {
+export interface AuthState {
     user: User | null;
     isAuthenticated: boolean;
     isLoading: boolean;
