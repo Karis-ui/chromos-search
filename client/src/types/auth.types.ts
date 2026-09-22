@@ -34,6 +34,7 @@ export interface User {
     bio?: string;
     phone_number?: string;
     role: UserRole;
+
     status: UserStatus;
     is_active: boolean;
     is_verified: boolean;

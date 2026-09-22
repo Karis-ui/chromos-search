@@ -2,29 +2,33 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface GlitchTextProps {
-  children: string;
+  children?: string;
+  text?: string;
   className?: string;
   glitchInterval?: number;
   intensity?: number;
   color?: string;
-  style;
+  style?: React.CSSProperties;
 }
 
 export const GlitchText: React.FC<GlitchTextProps> = ({
   children,
+  text,
   className = '',
   glitchInterval = 2000,
   intensity = 1,
   color = '#06b6d4',
+  style,
 }) => {
+  const content = text ?? children ?? '';
   const [isGlitching, setIsGlitching] = useState(false);
-  const [glitchText, setGlitchText] = useState(children);
+  const [glitchText, setGlitchText] = useState(content);
   const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   const characters = '!@#$%^&*()_+-=[]{}|;:,.<>?/`~';
 
   const generateGlitch = () => {
-    const chars = children.split('');
+    const chars = content.split('');
     const glitched = chars.map((char) => {
       if (Math.random() < 0.15 * intensity) {
         return characters[Math.floor(Math.random() * characters.length)];
@@ -36,13 +40,17 @@ export const GlitchText: React.FC<GlitchTextProps> = ({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
+    setGlitchText(content);
+  }, [content]);
+
+  useEffect(() => {
     intervalRef.current = setInterval(() => {
       setIsGlitching(true);
       setGlitchText(generateGlitch());
 
       timeoutRef.current = setTimeout(() => {
         setIsGlitching(false);
-        setGlitchText(children);
+        setGlitchText(content);
       }, 150);
     }, glitchInterval);
 
@@ -53,7 +61,7 @@ export const GlitchText: React.FC<GlitchTextProps> = ({
   }, [children, glitchInterval, intensity]);
 
   return (
-    <span className={`relative inline-block ${className}`}>
+    <span className={`relative inline-block ${className}`} style={style}>
       <span className="relative z-10">{children}</span>
 
       <AnimatePresence>
