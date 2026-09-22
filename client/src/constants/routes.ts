@@ -13,6 +13,7 @@ export const ROUTES = {
     NOT_FOUND: '/404',
     DASHBOARD: '/dashboard',
     SEARCH: '/search',
+    FEEDBACK: '/feedback',
     SEARCH_RESULT: (taskId: string) => `/search/${taskId}`,
     RESULTS: '/results',
     RESULT_DETAIL: (id: string) => `/results/${id}`,
@@ -33,6 +34,10 @@ export const ROUTES = {
     SUBSCRIPTION: '/subscription',
     SUPPORT: '/support',
     EXPORTS: '/exports',
+    ERROR: '/error',
+    NOTFOUND: '/404',
+    COMPARE: '/compare',
+    PREMIUM: '/premium',
 
     ADMIN: '/admin',
     ADMIN_DASHBOARD: '/admin/dashboard',

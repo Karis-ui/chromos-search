@@ -182,3 +182,5 @@ export const MorphingGrid: React.FC<MorphingGridProps> = ({ results, onResultCli
         </div>
     );
 };
+
+export default MorphingGrid;
