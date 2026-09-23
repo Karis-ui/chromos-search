@@ -126,6 +126,15 @@ class User(Base):
     api_keys = relationship("ApiKey", back_populates="user", lazy="dynamic")
     feedbacks = relationship("UserFeedback", back_populates="user", lazy="dynamic")
     notifications = relationship("Notification", back_populates="user", lazy="dynamic")
+
+    oauth_google_id = Column(String(255), unique=True, nullable=True, index=True)
+    oauth_github_id = Column(String(255), unique=True, nullable=True, index=True)
+    oauth_microsoft_id = Column(String(255), unique=True, nullable=True, index=CELERY_TASK_ROUTES)
+    oauth_providers = Column(JSONB, default=list)  
+    oauth_last_login = Column(String(50), nullable=True)  
+    oauth_profile_data = Column(JSONB, default=dict)  
+    has_password = Column(Boolean, default=True)  
+    is_oauth_only = Column(Boolean, default=False) 
     
     @validates('email')
     def validate_email(self, key, value):
@@ -480,6 +489,56 @@ class Notification(Base):
     def __repr__(self) -> str:
         return f"<Notification {self.type.value} for {self.user_id}>"
 
+class OAuthAccount(Base):
+    __tablename__ = "oauth_accounts"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    provider = Column(String(50), nullable=False)
+    provider_user_id = Column(String(255), nullable=False)
+    provider_username = Column(String(50), nullable=False)
+    provider_email = Column(String(255), nullable=False)
+    
+    access_token = Column(String(255),nullable=False)
+    refresh_token = Column(String(255),nullable=True)
+    expires_at = Column(DateTime(timezone=True),nullable=True)
+    scope = Column(Text,nullable=True)
+    
+    profile_data = Column(JSONB, default=dict,nullable=False)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    user = relationship("User", back_populates="oauth_accounts")
+    
+    __table_args__ = (
+        UniqueConstraint("user_id", "provider", name="uq_oauth_user_provider"),
+        Index('idx_oauth_user_provider', 'user_id', 'provider'),
+        Index('idx_oauth_provider_id', 'provider', 'provider_user_id'),
+    )
+    
+    def __repr__(self) -> str:
+        return f"<OAuthAccount {self.provider} for {self.user_id}>"
+
+class OAuthState(Base):
+    __tablename__ = "oauth_states"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    state = Column(String(255), unique=True, nullable=False, index=True)
+    provider = Column(String(50), nullable=False)
+    redirect_uri = Column(Text, nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    link_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    
+    __table_args__ = (
+        Index('idx_oauth_state_expires', 'expires_at'),
+    )
+
 __all__ = [
     "MediaType",
     "Platform", 
@@ -495,4 +554,6 @@ __all__ = [
     "SearchResult",
     "UserFeedback",
     "Notification",
+    "OAuthAccount",
+    "OAuthState",
 ]

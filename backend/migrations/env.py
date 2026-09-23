@@ -58,7 +58,7 @@ async def run_async_migrations():
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
 
-def do_run_migartions(connection:Connection):
+def do_run_migrations(connection:Connection):
     context.configure(
             connection=connection,
             target_metadata=target_metadata,

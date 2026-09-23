@@ -83,6 +83,16 @@ class Settings(BaseSettings):
     POSTGRES_ECHO: bool = False
     POSTGRES_POOL_PRE_PING: bool = True
     POSTGRES_POOL_RECYCLE: int = 3600
+    GOOGLE_CLIENT_ID: Optional[str] = Field(None, env="GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET: Optional[SecretStr] = Field(None, env="GOOGLE_CLIENT_SECRET")
+    GITHUB_CLIENT_ID: Optional[str] = Field(None, env="GITHUB_CLIENT_ID")
+    GITHUB_CLIENT_SECRET: Optional[SecretStr] = Field(None, env="GITHUB_CLIENT_SECRET")
+    BACKEND_URL: str = Field("http://localhost:8000", env="BACKEND_URL")
+    FRONTEND_URL: str = Field("http://localhost:3000", env="FRONTEND_URL")
+    OAUTH_STATE_EXPIRE_SECONDS: int = 600 
+    OAUTH_ALLOW_ACCOUNT_LINKING: bool = True
+    OAUTH_AUTO_CREATE_USERS: bool = True
+    OAUTH_REQUIRE_VERIFIED_EMAIL: bool = True
     
     @property
     def DATABASE_URL(self) -> str:

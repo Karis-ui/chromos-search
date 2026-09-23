@@ -224,9 +224,9 @@ def rate_limit(self, key_func: Callable[[Request], str]):
                     user_id = request.state.user_id
                     
                 key = f"{func.__name__}:{user_id if user_id else request.client.host if request.client else 'anonymous'}"
-                limit_val = limit or settings.RATE_LIMIT_REQUESTS
-                period_val = period or settings.RATE_LIMIT_PERIOD
-                burst_val = burst or settings.RATE_LIMIT_BURST
+                limit_val = settings.RATE_LIMIT_REQUESTS
+                period_val = settings.RATE_LIMIT_PERIOD
+                burst_val = settings.RATE_LIMIT_BURST
                 
                 allowed = await rate_limiter.is_allowed(key)
                 if not allowed:
