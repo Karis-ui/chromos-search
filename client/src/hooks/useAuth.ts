@@ -48,7 +48,7 @@ export const useAuth = () => {
     );
 
     const register = useCallback(
-        async (data: { email: string, username: string, password: string, full_name?: string }) => {
+        async (data: { email: string, username: string, password: string, full_name?: string, acceptTerms: boolean }) => {
             setLoading(true);
             clearError();
 

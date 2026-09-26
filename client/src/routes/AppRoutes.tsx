@@ -15,6 +15,7 @@ import { ErrorBoundary } from '../components/common/ErrorBoundary';
 
 import { ROUTES } from '../constants/routes';
 
+const OAuthCallbackPage = lazy(() => import('../pages/OAuthCallbackPage'));
 const SearchDashboard = lazy(() => import('../components/search/SearchDashboard'));
 const AnalyticsDashboard = lazy(() => import('../components/analytics/AnalyticsDashboard'));
 const MorphingGrid = lazy(() => import('../components/search/MorphingGrid'));
@@ -105,6 +106,19 @@ export const AppRoutes: React.FC = () => {
                                 <LazyRoute>
                                     <PageTransition>
                                         <RegisterPage />
+                                    </PageTransition>
+                                </LazyRoute>
+                            </PublicRoute>
+                        }
+                    />
+
+                    <Route
+                        path="/auth/oauth/callback"
+                        element={
+                            <PublicRoute>
+                                <LazyRoute>
+                                    <PageTransition>
+                                        <OAuthCallbackPage />
                                     </PageTransition>
                                 </LazyRoute>
                             </PublicRoute>

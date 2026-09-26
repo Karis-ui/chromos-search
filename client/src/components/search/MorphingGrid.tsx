@@ -9,7 +9,7 @@ interface MorphingGridProps {
         url: string;
         platform: string;
         posted_at: string;
-        confidence: string;
+        confidence: number;
         similarity: number;
         thumbnail: string;
         caption?: string;

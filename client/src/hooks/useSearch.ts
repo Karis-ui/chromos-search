@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import searchApi from '../api/endpoints/search';
 import { useSearchStore } from '../store/searchStore';
-import { useWebSocket } from './useWebSocket';
+import { useWebSocket } from '../providers';
 import { useAuthStore } from '../store/authStore';
 
 export const useSearch = () => {
@@ -15,7 +15,6 @@ export const useSearch = () => {
         progress,
         status,
         isSearching,
-        addResult,
         addResults,
         clearResults,
         setProgress,
@@ -25,54 +24,8 @@ export const useSearch = () => {
     } = useSearchStore();
     const [taskId, setTaskId] = useState<string | null>(null);
     const [isExporting, setIsExporting] = useState(false);
-    const wsRef = useRef<WebSocket | null>(null);
-    const { isConnected, lastMessage } = useWebSocket(
-        taskId ? `ws://localhost:8000/api/v1/ws/search/${taskId}?token=${accessToken}` : null
-    );
+    const { isConnected } = useWebSocket();
     const hasNotifiedRef = useRef(false);
-
-    useEffect(() => {
-        if (taskId && accessToken && wsRef.current) {
-            wsRef.current.close();
-            connectWebSocket(taskId, accessToken);
-        }
-    });
-
-    function connectWebSocket(taskId: string, accessToken: string): WebSocket {
-        const url = `ws://localhost:8000/api/v1/ws/search/${taskId}`;
-        const socket = new WebSocket(url);
-
-        socket.onopen = () => {
-            socket.send(JSON.stringify({ token: accessToken }));
-        };
-        socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            return data;
-        };
-        return socket;
-    }
-
-    useEffect(() => {
-        if (!lastMessage) return;
-        const data = JSON.parse(lastMessage.data);
-        switch (data.type) {
-            case 'progress':
-                setProgress(data.data.progress, data.data.status, data.data.message);
-                break;
-            case 'result':
-                addResult(data.data);
-                break;
-            case 'complete':
-                setProgress(100, 'completed', 'Search completed!');
-                toast.success(`🎯 Search complete! Found ${data.data.results_count} matches`);
-                break;
-            case 'error':
-                toast.error(`❌ ${data.data.message}`);
-                break;
-            default:
-                break;
-        }
-    }, [lastMessage, addResult, setProgress]);
 
     const searchMutation = useMutation({
         mutationFn: async (data: {
@@ -143,18 +96,16 @@ export const useSearch = () => {
         queryKey: ['search-results', taskId, filters],
         queryFn: () => searchApi.getResults(taskId!, {
             limit: 100,
-            sort_by: filters.sort_by,
+            sort_by: filters.sortBy,
         }),
         enabled: !!taskId && statusQuery.data?.status === 'completed',
     });
 
     useEffect(() => {
-        if (resultsQuery.data) {
-            if (resultsQuery.data.length > 0) {
-                addResults(resultsQuery.data);
-            }
+        if (resultsQuery.data && resultsQuery.data.length > 0) {
+            addResults(resultsQuery.data as any);
         }
-    }, [statusQuery.data]);
+    }, [resultsQuery.data, addResults]);
 
     const feedbackMutation = useMutation({
         mutationFn: (data: { resultId: string; feedback: any }) =>

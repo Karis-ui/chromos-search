@@ -49,6 +49,7 @@ export const formatDateISO = (date: string | Date): string => {
     } catch {
         return '';
     }
+    return '';
 };
 
 export const formatDuration = (ms: number): string => {

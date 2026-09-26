@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiActivity, FiCpu, FiZap, FiWifi, FiClock, FiDatabase } from 'react-icons/fi';
-import { useWebSocket } from '../../hooks/useWebSocket';
+import { useWebSocket } from '../../providers';
 import { useSearchStore } from '../../store/searchStore';
 
 export const StatusBar: React.FC = () => {
     const [systemTime, setSystemTime] = useState(new Date());
     const [cpuUsage, setCpuUsage] = useState(0);
     const [memoryUsage, setMemoryUsage] = useState(0);
-    const { isConnected } = useWebSocket(null);
+    const { isConnected } = useWebSocket();
     const { results, totalResults, progress, isSearching } = useSearchStore();
 
     useEffect(() => {

@@ -9,7 +9,7 @@ interface TimelineAxisProps {
         posted_at: string;
         similarity: number;
         platform: string;
-        confidence: string;
+        confidence: number;
     }>;
     onPointClick?: (result: any) => void;
     onRangeChange?: (start: Date, end: Date) => void;
@@ -78,8 +78,10 @@ export const TimelineAxis: React.FC<TimelineAxisProps> = ({
             .range([0, width])
             .domain([timelineData.start, timelineData.end]);
 
+        const maxCount = d3.max(timelineData.grouped, d => d.count) ?? 1;
+
         const yScaleCount = d3.scaleLinear()
-            .domain([0, d3.max(timelineData.grouped, d => d.count) || 1])
+            .domain([0, maxCount])
             .range([height, 0]);
 
         const yScaleSimilarity = d3.scaleLinear()
@@ -130,7 +132,7 @@ export const TimelineAxis: React.FC<TimelineAxisProps> = ({
                 .attr('height', 0)
                 .attr('rx', 1)
                 .attr('ry', 1)
-                .attr('fill', `rgba(168, 85, 247, ${0.15 + (d.count / d3.max(timelineData.grouped, d => d.count) || 1) * 0.3})`)
+                .attr('fill', `rgba(168, 85, 247, ${0.15 + (d.count / maxCount) * 0.3})`)
                 .style('cursor', 'pointer')
                 .on('click', () => {
                     if (onPointClick && d.posts.length > 0) {
@@ -234,7 +236,7 @@ export const TimelineAxis: React.FC<TimelineAxisProps> = ({
 
         points.transition()
             .duration(1200)
-            .delay((d, i) => i * 10)
+            .delay((_d, i) => i * 10)
             .style('opacity', 1);
 
         points.append('circle')

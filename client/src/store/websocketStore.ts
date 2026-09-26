@@ -94,7 +94,7 @@ export const useWebSocketStore = create<WebSocketState>()(
                 }
             }),
             removeSubscription: (channel) => set((state) => {
-                state.subscriptions = state.subscriptions.filter((sub) => sub !== channel);
+                state.subscriptions = state.subscriptions.filter((sub: string) => sub !== channel);
             }),
             clearSubscriptions: () => set({ subscriptions: [] }),
             reset: () => set({

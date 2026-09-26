@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 interface BiometricVisualizerProps {
-  type: 'face' | 'voice' | 'hybrid';
+  type: string;
   confidence: number;
   isActive: boolean;
   size?: 'sm' | 'md' | 'lg';
   onFeatureDetected?: (feature: string) => void;
 }
+
+type BiometricType = 'face' | 'voice' | 'hybrid';
+type BiometricSize = 'sm' | 'md' | 'lg';
 
 interface Neuron {
   x: number;
@@ -21,7 +24,7 @@ interface Neuron {
 }
 
 export const BiometricVisualizer: React.FC<BiometricVisualizerProps> = ({
-  confidence, isActive, size, type = 'md', onFeatureDetected
+  confidence, isActive, size = 'md', type = 'md', onFeatureDetected
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [neurons, setNeurons] = useState<Neuron[]>([]);
@@ -29,26 +32,29 @@ export const BiometricVisualizer: React.FC<BiometricVisualizerProps> = ({
   const animationRef = useRef<number | null>(null);
   const timeRef = useRef(0);
 
-  const sizeMap = {
-    sm: { width: 200, height: 200, neuronCount: 40, dotSize: 2 },
-    md: { width: 300, height: 300, neuronCount: 80, dotSize: 3 },
-    lg: { width: 400, height: 400, neuronCount: 120, dotSize: 4 },
+  const sizeMap: Record<BiometricSize, { width: number; height: number; neuronCount: number; dotSize: number }> = {
+    sm: { width: 120, height: 120, neuronCount: 40, dotSize: 1 },
+    md: { width: 200, height: 200, neuronCount: 80, dotSize: 1.5 },
+    lg: { width: 300, height: 300, neuronCount: 120, dotSize: 2 },
   };
 
-  const { width, height, neuronCount, dotSize } = sizeMap[size];
-  const colors = {
-    face: ['#06b6d4', '#0891b2', '#22d3ee', '#67e8f9'],
-    voice: ['#a855f7', '#7e22ce', '#c084fc', '#d8b4fe'],
-    hybrid: ['#ec4899', '#db2777', '#f472b6', '#f9a8d4'],
-  };
-  const colorSet = colors[type] || colors.face;
+  const { width, height, neuronCount, dotSize } = sizeMap[size ?? 'md'];
+  const normalizedType: BiometricType =
+    type === 'face' || type === 'voice' || type === 'hybrid' ? type : 'face';
 
-  const featureLabels = {
-    face: ['Eyes', 'Nose', 'Mouth', 'Jaw', 'Cheekbones', 'Forehead'],
-    voice: ['Pitch', 'Tone', 'Rhythm', 'Timbre', 'Volume', 'Clarity'],
-    hybrid: ['Face', 'Voice', 'Expression', 'Emotion', 'Identity', 'Match'],
-  }
-  const labels = featureLabels[type] || featureLabels.face;
+  const colors: Record<BiometricType, string[]> = {
+    face: ['#22d3ee', '#a855f7', '#ec4899'],
+    voice: ['#f472b6', '#fb923c', '#facc15'],
+    hybrid: ['#22d3ee', '#a855f7', '#ec4899', '#10b981'],
+  };
+
+  const featureLabels: Record<BiometricType, string[]> = {
+    face: ['Eyes', 'Nose', 'Mouth', 'Jaw'],
+    voice: ['Pitch', 'Tone', 'Rhythm', 'Timbre'],
+    hybrid: ['Face', 'Voice', 'Fusion', 'Score'],
+  };
+  const colorSet = colors[normalizedType] || colors.face;
+  const labels = featureLabels[normalizedType] || featureLabels.face;
 
   const initNeurons = useCallback(() => {
     const newNeurons: Neuron[] = [];

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface GlitchTextProps {
-  children?: string;
+  children?: React.ReactNode;
   text?: string;
   className?: string;
   glitchInterval?: number;
@@ -20,7 +20,7 @@ export const GlitchText: React.FC<GlitchTextProps> = ({
   color = '#06b6d4',
   style,
 }) => {
-  const content = text ?? children ?? '';
+  const content = text ?? (typeof children === 'string' ? children : '');
   const [isGlitching, setIsGlitching] = useState(false);
   const [glitchText, setGlitchText] = useState(content);
   const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);

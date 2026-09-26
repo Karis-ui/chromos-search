@@ -9,7 +9,7 @@ interface SearchTimelineProps {
         posted_at: string;
         similarity: number;
         platform: string;
-        confidence: string;
+        confidence: number;
     }>;
     onPointClick?: (result: any) => void;
 }

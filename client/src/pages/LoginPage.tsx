@@ -33,6 +33,7 @@ import { useAuth } from '../hooks/useAuth';
 import { ROUTES } from '../constants/routes';
 import { APP_CONFIG } from '../constants/config';
 import { LIMITS } from '../constants/config';
+import { OAuthButtons } from '../components/auth/OAuthButtons';
 
 const loginSchema = z.object({
     email: z.string().min(1, 'Email is required').email('Invalid email address'),
@@ -492,6 +493,7 @@ export const LoginPage: React.FC = () => {
                                     </span>
                                 </div>
                             </div>
+                            <OAuthButtons layout='grid' mode='login' />
 
                             <div className="grid grid-cols-2 gap-3">
                                 <button

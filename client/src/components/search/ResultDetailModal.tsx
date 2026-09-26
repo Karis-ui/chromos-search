@@ -23,7 +23,7 @@ interface ResultDetailModalProps {
         url: string;
         platform: string;
         posted_at: string;
-        confidence: string;
+        confidence: number;
         similarity: number;
         thumbnail: string;
         caption?: string;
@@ -74,7 +74,7 @@ export const ResultDetailModal: React.FC<ResultDetailModalProps> = ({
         };
     }, [isOpen]);
     if (!result || !isOpen) return null;
-    const confidenceNum = parseFloat(result.confidence);
+    const confidenceNum = result.confidence;
     const platformColor = getPlatformColor(result.platform);
     const confidenceColor = confidenceNum > 85 ? '#4ade80' : confidenceNum > 70 ? '#facc15' : '#f87171';
 
@@ -223,11 +223,11 @@ export const ResultDetailModal: React.FC<ResultDetailModalProps> = ({
                                             </div>
                                         )}
 
-                                        {(result.hashtags?.length || result.mentions?.length) && (
+                                        {((result.hashtags ?? []).length > 0 || (result.mentions ?? []).length > 0) && (
                                             <div className="space-y-2">
-                                                {result.hashtags?.length > 0 && (
+                                                {(result.hashtags ?? []).length > 0 && (
                                                     <div className="flex flex-wrap gap-1.5">
-                                                        {result.hashtags.map((tag, i) => (
+                                                        {(result.hashtags ?? []).map((tag, i) => (
                                                             <span
                                                                 key={i}
                                                                 className="px-2 py-0.5 bg-cyan-400/10 rounded-lg text-xs text-cyan-400 font-mono"
@@ -237,9 +237,9 @@ export const ResultDetailModal: React.FC<ResultDetailModalProps> = ({
                                                         ))}
                                                     </div>
                                                 )}
-                                                {result.mentions?.length > 0 && (
+                                                {(result.mentions ?? []).length > 0 && (
                                                     <div className="flex flex-wrap gap-1.5">
-                                                        {result.mentions.map((mention, i) => (
+                                                        {(result.mentions ?? []).map((mention, i) => (
                                                             <span
                                                                 key={i}
                                                                 className="px-2 py-0.5 bg-purple-400/10 rounded-lg text-xs text-purple-400 font-mono"

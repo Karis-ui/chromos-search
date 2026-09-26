@@ -59,6 +59,7 @@ import {
     FiHeart,
     FiStar,
     FiRadio,
+    FiMessageCircle,
 } from 'react-icons/fi';
 
 import { GlassCard } from '../common/GlassCard';
@@ -111,13 +112,11 @@ const ResultDetailModal = lazy(() =>
 
 import { useSearch } from '../../hooks/useSearch';
 import { useAuth } from '../../hooks/useAuth';
-import { useWebSocket } from '../../hooks/useWebSocket';
+import { useWebSocket } from '../../providers';
 
 import { useSearchStore } from '../../store/searchStore';
 import { useUIStore } from '../../store/uiStore';
-import { useAuthStore } from '../../store/authStore';
 
-import { searchApi } from '../../api/endpoints/search';
 import { healthApi } from '../../api/endpoints/health';
 
 import {
@@ -134,15 +133,15 @@ type PanelTab = 'parameters' | 'statistics' | 'distributions' | 'analytics' | 'h
 type ResultsSort = 'similarity' | 'date' | 'platform' | 'confidence';
 
 interface SearchResult {
-    id: string;
-    post_id: string;
+    id?: string;
+    post_id?: string;
     platform: string;
     url: string;
     thumbnail: string;
     posted_at: string;
     similarity: number;
     confidence: number;
-    confidence_level: string;
+    confidence_level?: string;
     caption?: string;
     author_username?: string;
     author_full_name?: string;
@@ -202,11 +201,10 @@ const GRID_COLS: Record<number, string> = {
 
 export const SearchDashboard: React.FC = () => {
     const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [, setSearchParams] = useSearchParams();
     const queryClient = useQueryClient();
 
     const { user, logout, isAuthenticated } = useAuth();
-    const { accessToken } = useAuthStore();
 
     const notification = useNotification();
 
@@ -231,11 +229,10 @@ export const SearchDashboard: React.FC = () => {
     const {
         searchTime,
         setSearchTime,
-        addResult,
         clearResults,
         totalResults: storeTotalResults,
     } = useSearchStore();
-    const { isDark, setTheme, sidebarCollapsed, toggleSidebar } = useUIStore();
+    const { isDark, setTheme } = useUIStore();
 
     const [state, setState] = useState<DashboardState>({
         uploadedFile: null,
@@ -275,16 +272,7 @@ export const SearchDashboard: React.FC = () => {
 
     const [systemHealth, setSystemHealth] = useState<{ status: string; version: string } | null>(null);
 
-    const { isConnected: wsConnected } = useWebSocket(
-        taskId ? `ws://localhost:8000/api/v1/ws/search/${taskId}` : null,
-        {
-            onMessage: (data) => {
-                if (data.type === 'result') {
-                    addResult(data.data);
-                }
-            },
-        }
-    );
+    const { isConnected: wsConnected } = useWebSocket();
 
     const hasResults = results.length > 0;
     const canSearch = !!state.uploadedFile && !isSearchingMutation;
@@ -292,7 +280,7 @@ export const SearchDashboard: React.FC = () => {
 
     const displayedResults = useMemo(() => {
         return state.showFavoritesOnly
-            ? results.filter((r) => state.favorites.has(r.id))
+            ? results.filter((r) => state.favorites.has(r.id ?? r.url))
             : results;
     }, [results, state.showFavoritesOnly, state.favorites]);
 
@@ -632,7 +620,7 @@ export const SearchDashboard: React.FC = () => {
 
     const ResultWithActions = useCallback(
         ({ result, index }: { result: SearchResult; index: number }) => {
-            const isFav = state.favorites.has(result.id);
+            const isFav = state.favorites.has(result.id ?? result.url);
             const platformColor = getPlatformColor(result.platform);
             const confColor = getConfidenceColor(result.similarity);
 
@@ -658,7 +646,7 @@ export const SearchDashboard: React.FC = () => {
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                toggleFavorite(result.id);
+                                toggleFavorite(result.id ?? result.url);
                             }}
                             className="p-1.5 bg-black/60 backdrop-blur rounded-lg hover:bg-black/80"
                             title="Favorite"
@@ -703,7 +691,7 @@ export const SearchDashboard: React.FC = () => {
                 return (
                     <div className="h-[600px] rounded-2xl overflow-hidden border border-white/5 relative">
                         <Suspense fallback={<VisualizerSkeleton label="Loading spiral" />}>
-                            <ChronosSpiral results={displayedResults} onResultClick={handleResultClick} />
+                            <ChronosSpiral results={displayedResults as any[]} onResultClick={handleResultClick as any} />
                         </Suspense>
                     </div>
                 );
@@ -1195,20 +1183,21 @@ export const SearchDashboard: React.FC = () => {
         >
             <AnimatePresence>
                 {isDragActive && (
-                    <motion.div
-                        {...getRootProps()}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[100] bg-cyan-500/10 backdrop-blur-sm flex items-center justify-center"
-                    >
+                    <div {...getRootProps()} className="fixed inset-0 z-[100]">
                         <input {...getInputProps()} />
-                        <div className="p-12 rounded-3xl border-2 border-dashed border-cyan-400 bg-black/60 backdrop-blur-xl">
-                            <FiUpload className="w-16 h-16 text-cyan-400 mx-auto mb-4 animate-bounce" />
-                            <p className="text-xl font-bold text-white">Drop file to search</p>
-                            <p className="text-sm text-gray-400 mt-1">Image or video, up to 100MB</p>
-                        </div>
-                    </motion.div>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="w-full h-full bg-cyan-500/10 backdrop-blur-sm flex items-center justify-center"
+                        >
+                            <div className="p-12 rounded-3xl border-2 border-dashed border-cyan-400 bg-black/60 backdrop-blur-xl">
+                                <FiUpload className="w-16 h-16 text-cyan-400 mx-auto mb-4 animate-bounce" />
+                                <p className="text-xl font-bold text-white">Drop file to search</p>
+                                <p className="text-sm text-gray-400 mt-1">Image or video, up to 100MB</p>
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
 
@@ -1355,7 +1344,7 @@ export const SearchDashboard: React.FC = () => {
                             >
                                 <div className="p-4 border-b border-white/5">
                                     <p className="text-sm font-medium text-white">
-                                        {user?.fullName || user?.username || 'User'}
+                                        {user?.full_name || user?.username || 'User'}
                                     </p>
                                     <p className="text-xs text-gray-500 mt-0.5">
                                         {user?.email || 'user@chronos.ai'}
@@ -1373,6 +1362,13 @@ export const SearchDashboard: React.FC = () => {
                                 >
                                     <FiSettings className="w-4 h-4 text-gray-500" />
                                     Settings
+                                </button>
+                                <button
+                                    onClick={() => handleSubmitFeedback}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-3 transition-colors"
+                                >
+                                    <FiMessageCircle className="w-4 h-4" />
+                                    Feedback
                                 </button>
                                 <button
                                     onClick={handleLogout}
@@ -1398,7 +1394,7 @@ export const SearchDashboard: React.FC = () => {
                         }}
                         user={user}
                         history={[]}
-                        onSelectHistory={(taskId) => {
+                        onSelectHistory={() => {
                             setState((prev) => ({ ...prev, isSidebarOpen: false }));
                         }}
                     />
@@ -1609,8 +1605,8 @@ export const SearchDashboard: React.FC = () => {
                                                         }))
                                                     }
                                                     className={`p-2 rounded-xl transition-colors border border-white/5 ${state.showFavoritesOnly
-                                                            ? 'bg-yellow-400/20 text-yellow-400'
-                                                            : 'bg-white/5 text-gray-400 hover:text-white'
+                                                        ? 'bg-yellow-400/20 text-yellow-400'
+                                                        : 'bg-white/5 text-gray-400 hover:text-white'
                                                         }`}
                                                     title="Show favorites only"
                                                 >
@@ -1661,8 +1657,8 @@ export const SearchDashboard: React.FC = () => {
                                                             key={mode}
                                                             onClick={() => handleViewModeChange(mode as ViewMode)}
                                                             className={`p-2 rounded-lg transition-all ${state.viewMode === mode
-                                                                    ? 'bg-cyan-400/20 text-cyan-400'
-                                                                    : 'text-gray-400 hover:text-white hover:bg-white/10'
+                                                                ? 'bg-cyan-400/20 text-cyan-400'
+                                                                : 'text-gray-400 hover:text-white hover:bg-white/10'
                                                                 }`}
                                                         >
                                                             {icon}
@@ -1784,8 +1780,8 @@ export const SearchDashboard: React.FC = () => {
                                             key={tab}
                                             onClick={() => handlePanelTabChange(tab as PanelTab)}
                                             className={`flex-1 flex flex-col items-center justify-center gap-0.5 px-1 py-1.5 rounded-lg text-[9px] font-medium transition-all ${state.panelTab === tab
-                                                    ? 'bg-cyan-400/20 text-cyan-400'
-                                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                                ? 'bg-cyan-400/20 text-cyan-400'
+                                                : 'text-gray-400 hover:text-white hover:bg-white/5'
                                                 }`}
                                         >
                                             {icon}
@@ -1914,13 +1910,7 @@ export const SearchDashboard: React.FC = () => {
                 />
             </Suspense>
 
-            <StatusBar
-                isConnected={isConnected}
-                resultsCount={resultsCount}
-                progress={progress}
-                isSearching={isSearchingMutation}
-                systemVersion={systemHealth?.version}
-            />
+            <StatusBar />
 
             <NotificationContainer />
         </div>

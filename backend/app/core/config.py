@@ -1,8 +1,8 @@
 import os
 import json
 from typing import Optional, List, Dict, Any, Union
-from pydantic import BaseSettings, Field, SecretStr, validator, root_validator
-from pydantic.env_settings import SettingsSourceCallable
+from pydantic import Field, SecretStr, validator, root_validator
+from pydantic_settings import BaseSettings
 from functools import lru_cache
 import logging
 from pathlib import Path

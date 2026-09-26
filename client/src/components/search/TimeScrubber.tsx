@@ -165,7 +165,7 @@ export const TimeScrubber: React.FC<TimeScrubberProps> = ({
             <div className="flex items-center justify-between mt-3">
                 <div className="flex items-center gap-2">
                     <FiCalendar className="w-3 h-3 text-cyan-400" />
-                    <span className="text-xs text-gray-400 font-mono">{displayValue}</span>
+                    <span className="text-xs text-gray-400 font-mono">{label}: {displayValue}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <FiZap className="w-3 h-3 text-purple-400" />

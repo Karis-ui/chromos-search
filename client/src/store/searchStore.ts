@@ -8,7 +8,7 @@ export interface SearchResult {
   url: string;
   platform: string;
   posted_at: string;
-  confidence: string;
+  confidence: number;
   similarity: number;
   thumbnail: string;
   caption?: string;
@@ -146,7 +146,7 @@ export const useSearchStore = create<SearchState>()(
         addResult: (result) => {
           set((state) => {
             const exists = state.results.some(
-              (r) => (r.id && r.id === result.id) || r.url === result.url
+              (r: SearchResult) => (r.id && r.id === result.id) || r.url === result.url
             );
             if (!exists) {
               state.results.push({
@@ -162,8 +162,8 @@ export const useSearchStore = create<SearchState>()(
 
         addResults: (results) => {
           set((state) => {
-            const existingKeys = new Set(state.results.map((r) => r.id || r.url));
-            const newResults = results.filter((r) => !existingKeys.has(r.id || r.url));
+            const existingKeys = new Set(state.results.map((r: SearchResult) => r.id || r.url));
+            const newResults = results.filter((r: SearchResult) => !existingKeys.has(r.id || r.url));
             if (newResults.length > 0) {
               state.results.push(
                 ...newResults.map((r) => ({ ...r, receivedAt: Date.now() }))
@@ -178,7 +178,7 @@ export const useSearchStore = create<SearchState>()(
         updateResult: (id, updates) => {
           set((state) => {
             const index = state.results.findIndex(
-              (r) => r.id === id || r.url === id
+              (r: SearchResult) => r.id === id || r.url === id
             );
             if (index !== -1) {
               state.results[index] = { ...state.results[index], ...updates };
@@ -191,7 +191,7 @@ export const useSearchStore = create<SearchState>()(
         removeResult: (id) => {
           set((state) => {
             state.results = state.results.filter(
-              (r) => r.id !== id && r.url !== id
+              (r: SearchResult) => r.id !== id && r.url !== id
             );
             state.totalResults = state.results.length;
             state.lastUpdated = Date.now();
@@ -280,7 +280,7 @@ export const useSearchStore = create<SearchState>()(
             state.isSearching = false;
             state.completedAt = Date.now();
 
-            if (state.taskId && !state.history.some((h) => h.taskId === state.taskId)) {
+            if (state.taskId && !state.history.some((h: SearchState['history'][number]) => h.taskId === state.taskId)) {
               state.history.unshift({
                 taskId: state.taskId,
                 query: state.filters.searchQuery || 'Media Search',
@@ -358,7 +358,7 @@ export const useSearchStore = create<SearchState>()(
 
         removeFromHistory: (taskId) => {
           set((state) => {
-            state.history = state.history.filter((h) => h.taskId !== taskId);
+            state.history = state.history.filter((h: SearchState['history'][number]) => h.taskId !== taskId);
           });
         },
 
@@ -372,14 +372,14 @@ export const useSearchStore = create<SearchState>()(
             return;
           }
 
-          const similarities = results.map((r) => r.similarity);
+          const similarities = results.map((r: SearchResult) => r.similarity);
           const avgConfidence =
             similarities.reduce((a, b) => a + b, 0) / similarities.length;
           const maxConfidence = Math.max(...similarities);
           const minConfidence = Math.min(...similarities);
 
           const platformCounts: Record<string, number> = {};
-          results.forEach((r) => {
+          results.forEach((r: SearchResult) => {
             platformCounts[r.platform] = (platformCounts[r.platform] || 0) + 1;
           });
 

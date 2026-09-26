@@ -6,7 +6,7 @@ interface HeatMapProps {
         posted_at: string;
         platform: string;
         similarity: number;
-        confidence: string;
+        confidence: number;
     }>;
     onCellClick?: (date: string, platform: string) => void;
 }

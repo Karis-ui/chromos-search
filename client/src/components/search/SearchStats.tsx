@@ -6,7 +6,7 @@ import { formatConfidence } from '../../utils/formatters';
 interface SearchStatsProps {
     results: Array<{
         platform: string;
-        confidence: string;
+        confidence: number;
         similarity: number;
         posted_at: string;
         likes?: number;

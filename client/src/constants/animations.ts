@@ -54,7 +54,7 @@ export const EASING = {
     expoInOut: [1, 0, 0, 1],
 } as const;
 
-export const TRANSITIONS = {
+export const TRANSITIONS: Record<string, any> = {
     default: {
         duration: DURATIONS.normal,
         ease: EASING.easeInOut,
@@ -199,7 +199,7 @@ export const TRANSITIONS = {
         delay: index * base,
     }),
 
-    delayed: (delay: number, base: keyof typeof TRANSITIONS = 'default') =>
+    delayed: (delay: number, base: string = 'default') =>
         ({ ...(TRANSITIONS[base] as any), delay }),
 } as const;
 

@@ -40,8 +40,8 @@ export const adminApi = {
     listUsers: (params?: { skip?: number, limit?: number; search?: string }) => {
         return apiClient.get<UserListItem[]>('/api/v1/admin/users', {
             params: {
-                skip: params.skip || 0,
-                limit: params?.limit || 50,
+                skip: params?.skip ?? 0,
+                limit: params?.limit ?? 50,
                 search: params?.search,
             },
         });

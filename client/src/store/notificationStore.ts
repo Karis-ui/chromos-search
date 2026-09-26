@@ -75,7 +75,7 @@ export const useNotificationStore = create<NotificationState>()(
                 set((state) => {
                     if (!state.isPaused) {
                         state.notifications.push(fullNotification);
-                        state.notifications.sort((a, b) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority));
+                        state.notifications.sort((a: Notification, b: Notification) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority));
                     } else {
                         state.queue.push(fullNotification);
                     }
@@ -85,7 +85,7 @@ export const useNotificationStore = create<NotificationState>()(
                         state.notifications.push(fullNotification);
                     }
 
-                    if (fullNotification.duration > 0) {
+                    if (fullNotification.duration !== undefined && fullNotification.duration > 0) {
                         setTimeout(() => {
                             get().remove(id);
                         }, fullNotification.duration);
@@ -97,7 +97,7 @@ export const useNotificationStore = create<NotificationState>()(
 
             remove(id) {
                 set((state) => {
-                    state.notifications = state.notifications.filter((n) => n.id !== id);
+                    state.notifications = state.notifications.filter((n: Notification) => n.id !== id);
                 });
             },
 
@@ -107,11 +107,11 @@ export const useNotificationStore = create<NotificationState>()(
 
             update(id, updates) {
                 set((state) => {
-                    const notif = state.notifications.find((n) => n.id === id);
+                    const notif = state.notifications.find((n: Notification) => n.id === id);
                     if (notif) {
                         Object.assign(notif, updates);
                         if (updates.priority) {
-                            state.notifications.sort((a, b) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority));
+                            state.notifications.sort((a: Notification, b: Notification) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority));
                         }
                     }
                 });

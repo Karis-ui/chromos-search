@@ -8,7 +8,7 @@ interface TemporalHeatmapProps {
         posted_at: string;
         platform: string;
         similarity: number;
-        confidence: string;
+        confidence: number;
         likes?: number;
         shares?: number;
     }>;
@@ -226,6 +226,11 @@ export const TemporalHeatmap: React.FC<TemporalHeatmapProps> = ({ results, onDat
                     <FiClock className="w-4 h-4 text-cyan-400" />
                     <h3 className="text-sm font-semibold text-gray-300">Temporal Heatmap</h3>
                 </div>
+                {hoveredCell && (
+                    <span className="text-[10px] text-cyan-400 font-mono">
+                        {hoveredCell.date} • {hoveredCell.hour}:00
+                    </span>
+                )}
                 {selectedDate && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}

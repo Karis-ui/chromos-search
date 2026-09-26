@@ -8,11 +8,14 @@ import {
   Stars,
   Sparkles,
   GradientTexture,
+} from '@react-three/drei';
+import {
+
   Bloom,
   ChromaticAberration,
   EffectComposer,
   DepthOfField,
-} from '@react-three/drei';
+} from '@react-three/postprocessing';
 import { AnimatePresence } from 'framer-motion';
 import * as THREE from 'three';
 import { FiMaximize2, FiMinimize2 } from 'react-icons/fi';
@@ -76,7 +79,7 @@ const SpiralCard3D: React.FC<{
     return Math.sin(index * 1.5 + performance.now() * 0.001) * 0.15;
   }, [index]);
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     if (meshRef.current) {
       setPulsePhase(prev => prev + delta * 0.5);
       const pulse = Math.sin(pulsePhase) * 0.02 + 1;

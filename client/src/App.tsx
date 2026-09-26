@@ -33,6 +33,7 @@ import { useNotificationStore } from './store/notificationStore';
 
 import { ROUTES } from './constants/routes';
 import { APP_CONFIG, IS_DEV, IS_PROD, FEATURE_FLAGS } from './constants/config';
+import LazyRoute from './routes/LazyRoute';
 
 const SearchDashboard = lazy(() => import('./components/search/SearchDashboard'));
 const AnalyticsDashboard = lazy(() =>
@@ -50,6 +51,7 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const ErrorPage = lazy(() => import('./pages/ErrorPage'));
+const Home = lazy(() => import('./pages/Home'));
 
 const createQueryClient = (): QueryClient =>
   new QueryClient({
@@ -254,6 +256,33 @@ const AppRouter: React.FC = () => {
   return (
     <Suspense fallback={<Loader fullScreen text="Loading module..." />}>
       <Routes>
+        <Route
+          path={ROUTES.HOME}
+          element={
+            <PublicRoute>
+              <LazyRoute>
+                <PageTransition>
+                  <Home />
+                </PageTransition>
+              </LazyRoute>
+            </PublicRoute>
+          }
+        />
+
+        <Route
+          path={ROUTES.DASHBOARD}
+          element={
+            <PublicRoute>
+              <AppLayout>
+                <LazyRoute>
+                  <PageTransition>
+                    <SearchDashboard />
+                  </PageTransition>
+                </LazyRoute>
+              </AppLayout>
+            </PublicRoute>
+          }
+        />
         <Route
           path={ROUTES.LOGIN}
           element={

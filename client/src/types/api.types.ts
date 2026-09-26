@@ -74,15 +74,15 @@ export interface RequestConfig {
 }
 
 export interface ResponseHeaders {
-    'content-type'?: string;
-    'content-length'?: string;
-    'x-request-id'?: string;
-    'x-correlation-id'?: string;
-    'x-response-time'?: string;
-    'x-rate-limit-limit'?: string;
-    'x-rate-limit-remaining'?: string;
-    'x-rate-limit-reset'?: string;
-    [key: string]: string | 'undefined';
+    'content-type': string;
+    'content-length': string;
+    'x-request-id': string;
+    'x-correlation-id': string;
+    'x-response-time': string;
+    'x-rate-limit-limit': string;
+    'x-rate-limit-remaining': string;
+    'x-rate-limit-reset': string;
+    [key: string]: string;
 }
 
 export interface UploadProgress {

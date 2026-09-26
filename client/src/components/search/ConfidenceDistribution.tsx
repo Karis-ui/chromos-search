@@ -5,7 +5,7 @@ import { FiBarChart2, FiTrendingUp, FiAward } from 'react-icons/fi';
 interface ConfidenceDistributionProps {
     results: Array<{
         similarity: number;
-        confidence: string;
+        confidence: number;
         platform: string;
     }>;
 }

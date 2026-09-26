@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiHeart, FiShare2, FiExternalLink, FiClock, FiUser, FiCamera, FiVideo } from 'react-icons/fi';
-import { getPlatformColor, formatTimeAgo, formatNumber, getConfidenceColor } from '../../utils/formatters';
+import { getPlatformColor, formatTimeAgo, formatNumber, getConfidenceColor, formatConfidence } from '../../utils/formatters';
 import { NeonBorder } from '../common/NeonBorder';
 
 interface ResultCardProps {
@@ -10,7 +10,7 @@ interface ResultCardProps {
         url: string;
         platform: string;
         posted_at: string;
-        confidence: string;
+        confidence: number;
         similarity: number;
         thumbnail: string;
         caption?: string;
@@ -28,7 +28,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, index, onClick }
     const [isHovered, setIsHovered] = useState(false);
     const [isLiked, setIsLiked] = useState(false);
 
-    const confidenceNum = parseFloat(result.confidence);
+    const confidenceNum = result.confidence;
     const confidenceColor = getConfidenceColor(confidenceNum);
     const platformColor = getPlatformColor(result.platform);
 
@@ -104,7 +104,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, index, onClick }
                                 color: confidenceColor,
                             }}
                         >
-                            {result.confidence}
+                            {formatConfidence(result.confidence)}
                         </div>
 
                         <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-xl rounded-md border border-white/5 text-[9px] text-gray-400 font-mono">
