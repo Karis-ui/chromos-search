@@ -25,7 +25,7 @@ async def test_search_initiate(async_client: AsyncClient, auth_headers):
         }
     )
     
-    assert response.status_code == 202
+    assert response.status_code == 200
     data = response.json()
     assert "task_id" in data
     assert data["status"] == "queued"

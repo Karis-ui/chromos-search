@@ -113,12 +113,13 @@ async def register(user_data:UserRegister,request:Request,db=Depends(get_db)):
             "username": new_user.username
         }
     
-@router.post("/login")
+@router.post("/login",response_model=TokenResponse)
+@rate_limit(limit=10,period=60)
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm=Depends(),
     db=Depends(get_db),
-    redis=Depends(get_redis),
-    limit=10,period=60,response=TokenResponse
+    redis=Depends(get_redis)
 ):
     from sqlalchemy import select
     stmt = select(User).where(User.email == form_data.username)

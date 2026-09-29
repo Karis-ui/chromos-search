@@ -47,7 +47,8 @@ export const API_CONFIG = {
             logout: '/api/v1/auth/logout',
             me: '/api/v1/auth/me',
             changePassword: '/api/v1/auth/change-password',
-            resetPassword: '/api/v1/auth/reset-password',
+            requestPasswordReset: '/api/v1/auth/password-reset/request',
+            confirmPasswordReset: '/api/v1/auth/password-reset/confirm',
         },
         search: {
             initiate: '/api/v1/search/initiate',

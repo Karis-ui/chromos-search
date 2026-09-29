@@ -36,7 +36,10 @@ export const useAuth = () => {
                 return true;
             }
             catch (error: any) {
-                const message = error.response?.data?.error?.message || 'Login failed';
+                const message = error.response?.data?.error?.message
+                    || error.response?.data?.message
+                    || error.response?.data?.detail
+                    || 'Login failed';
                 setError(message);
                 toast.error(message);
                 return false;

@@ -22,13 +22,15 @@ class JWtBearer(HTTPBearer):
             raise UnauthorizedException(
                 message="Invalid authentication scheme"
             )
-        payload = verify_token(credentials.credentials)
+        payload = verify_token(credentials.credentials, "access")
         if not payload:
             raise UnauthorizedException(
                 message="Invalid or expired token"
             )
         
-        user_id = payload.get(+'sub')
+        user_id = payload.get("sub")
+        if not user_id:
+            raise UnauthorizedException(message="Invalid authentication token")
         request.state.user_id = user_id
         set_user_id(user_id)
         return credentials.credentials

@@ -1,11 +1,11 @@
 import secrets
 import hashlib
 import base64
+import bcrypt as bcrypt_backend
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, Tuple
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from passlib.hash import bcrypt
 from fastapi import HTTPException, status, Depends, Request
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import ValidationError
@@ -20,12 +20,20 @@ from app.core.config import settings
 from app.core.redis_client import get_redis
 logger = logging.getLogger(__name__)
 
-pwd_context = CryptContext(schemes=["bcrypt","argon2","pbkdf2_sha256"], deprecated="auto",bcrypt__default_rounds=12)
+pwd_context = CryptContext(schemes=["argon2", "bcrypt", "pbkdf2_sha256"], deprecated="auto", bcrypt__default_rounds=12)
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    if hashed_password.startswith(("$2a$", "$2b$", "$2y$")):
+        try:
+            return bcrypt_backend.checkpw(
+                plain_password.encode("utf-8")[:72],
+                hashed_password.encode("ascii"),
+            )
+        except (TypeError, ValueError):
+            return False
     return pwd_context.verify(plain_password, hashed_password)
 
 def generate_salt(length: int = 32) -> str:
@@ -38,7 +46,11 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire, "iat": datetime.utcnow(),'jti': secrets.token_hex(16),'type': 'access'})
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    encoded_jwt = jwt.encode(
+        to_encode,
+        settings.SECRET_KEY.get_secret_value(),
+        algorithm=settings.ALGORITHM,
+    )
     return encoded_jwt
 
 def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -48,12 +60,20 @@ def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) 
     else:
         expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire, "iat": datetime.utcnow(),'jti': secrets.token_hex(16),'type': 'refresh'})
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    encoded_jwt = jwt.encode(
+        to_encode,
+        settings.SECRET_KEY.get_secret_value(),
+        algorithm=settings.ALGORITHM,
+    )
     return encoded_jwt
 
 def decode_token(token: str) -> dict:
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY.get_secret_value(),
+            algorithms=[settings.ALGORITHM],
+        )
         return payload
     except JWTError as e:
         logger.error(f"JWT decode error: {e}")
@@ -73,7 +93,7 @@ def verify_token(token: str, token_type: str) -> dict:
         )
     return payload
 
-def refresh_access_token(refresh_token: str) -> Tuple[str, dict]:
+def refresh_access_token(refresh_token: str) -> Dict[str, str]:
     payload = verify_token(refresh_token, "refresh")
     user_id = payload.get("sub")
     if not user_id:
@@ -197,48 +217,38 @@ class RateLimiter:
         else:
             return False
 
-def rate_limit(self, key_func: Callable[[Request], str]):
-        def decorator(func):
-            @wraps(func)
-            async def wrapper(*args, **kwargs):
-                redis_client = await get_redis()
-                rate_limiter = RateLimiter(redis_client, limit=settings.RATE_LIMIT_REQUESTS, period=settings.RATE_LIMIT_PERIOD)
-                request: Request = kwargs.get("request")
-                for arg in args:
-                    if isinstance(arg, Request):
-                        request = arg
-                        break
-                if not request:
-                    for k, v in kwargs.items():
-                        if isinstance(v, Request):
-                            request = v
-                            break
-                if request is None:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Request object is required for rate limiting.",
-                    )
-                    
-                user_id = None
-                if hasattr(request.state, "user_id"):
-                    user_id = request.state.user_id
-                    
-                key = f"{func.__name__}:{user_id if user_id else request.client.host if request.client else 'anonymous'}"
-                limit_val = settings.RATE_LIMIT_REQUESTS
-                period_val = settings.RATE_LIMIT_PERIOD
-                burst_val = settings.RATE_LIMIT_BURST
-                
-                allowed = await rate_limiter.is_allowed(key)
-                if not allowed:
-                    raise HTTPException(
-                        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                        detail="Too many requests.",
-                    )
-                
-                response = await func(*args, **kwargs)
-                return response
-            return wrapper
-        return decorator
+def rate_limit(
+    limit: int = settings.RATE_LIMIT_REQUESTS,
+    period: int = settings.RATE_LIMIT_PERIOD,
+    key_func: Optional[Callable[[Request], str]] = None,
+):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            request: Optional[Request] = kwargs.get("request")
+            if request is None:
+                request = next((arg for arg in args if isinstance(arg, Request)), None)
+            if request is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Request object is required for rate limiting.",
+                )
+
+            redis_client = await get_redis()
+            rate_limiter = RateLimiter(redis_client, limit=limit, period=period)
+            user_id = getattr(request.state, "user_id", None)
+            client_host = request.client.host if request.client else "anonymous"
+            key = key_func(request) if key_func else f"{func.__name__}:{user_id or client_host}"
+
+            if not await rate_limiter.is_allowed(key):
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Too many requests.",
+                )
+
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 class CSRFProtection:
     def __init__(self, redis_client: redis.Redis, token_expiry: int = 3600):

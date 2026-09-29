@@ -72,7 +72,7 @@ export const SearchApi = {
         formData.append('media_file', data.media_file);
 
         if (data.time_range_days !== undefined) {
-            formData.append('time_ramge_days', String(data.time_range_days));
+            formData.append('time_range_days', String(data.time_range_days));
         }
 
         if (data.min_confidence !== undefined) {
@@ -80,7 +80,7 @@ export const SearchApi = {
         }
 
         if (data.platforms && data.platforms.length > 0) {
-            formData.append('platfroms', data.platforms.join(','));
+            formData.append('platforms', data.platforms.join(','));
         }
 
         return apiClient.post<SearchInitiateResponse>(
@@ -98,7 +98,7 @@ export const SearchApi = {
     },
 
     getResults: (taskId: string, params?: { limit?: number; offset?: number; sort_by?: string }) => {
-        return apiClient.get<SearchResult[]>(`/api/v1/auth/search/results/${taskId}`, {
+        return apiClient.get<SearchResult[]>(`/api/v1/search/results/${taskId}`, {
             params: {
                 limit: params?.limit || 50,
                 offset: params?.offset || 0,

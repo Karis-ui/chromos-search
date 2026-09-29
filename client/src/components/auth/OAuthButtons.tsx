@@ -116,7 +116,7 @@ export const OAuthButtons: React.FC<OAuthButtonsProps> = ({
     const { providers, isLoading, loginWithProvider, linkProvider } = useOAuth();
 
     const enabledProviders = providers.filter((p) => {
-        if (!p.enable) return false;
+        if (!p.enabled) return false;
         if (showOnly && !showOnly.includes(p.id)) return false;
         return true;
     });

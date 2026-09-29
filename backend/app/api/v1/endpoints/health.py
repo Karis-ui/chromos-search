@@ -21,7 +21,7 @@ async def health_check() -> Dict[str,Any]:
         "timestamp": time.time(),
     }
 
-@router.get("/detailed",status_code=status.HTTP_200-OK)
+@router.get("/detailed", status_code=status.HTTP_200_OK)
 async def detailed_health_check() -> Dict[str,Any]:
     start_time = time.time()
     db_health = await check_database_health()

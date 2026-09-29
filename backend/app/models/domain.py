@@ -126,10 +126,11 @@ class User(Base):
     api_keys = relationship("ApiKey", back_populates="user", lazy="dynamic")
     feedbacks = relationship("UserFeedback", back_populates="user", lazy="dynamic")
     notifications = relationship("Notification", back_populates="user", lazy="dynamic")
+    oauth_accounts = relationship("OAuthAccount", back_populates="user", cascade="all, delete-orphan")
 
     oauth_google_id = Column(String(255), unique=True, nullable=True, index=True)
     oauth_github_id = Column(String(255), unique=True, nullable=True, index=True)
-    oauth_microsoft_id = Column(String(255), unique=True, nullable=True, index=CELERY_TASK_ROUTES)
+    oauth_microsoft_id = Column(String(255), unique=True, nullable=True, index=True)
     oauth_providers = Column(JSONB, default=list)  
     oauth_last_login = Column(String(50), nullable=True)  
     oauth_profile_data = Column(JSONB, default=dict)  
@@ -314,10 +315,9 @@ class SocialPost(Base):
         return self.voice_embedding is not None
     
     __table_args__ = (
-        Index('idx_posts_platform_date', 'platform', 'posted_at', postgresql_using='brin'),
+        Index('idx_posts_platform_date', 'platform', 'posted_at'),
         Index('idx_posts_active_date', 'posted_at', postgresql_where=(is_active == True)),
         Index('idx_posts_author_date', 'author_id', 'posted_at'),
-        Index('idx_posts_face_embedding', 'face_embedding', postgresql_using='ivfflat'),
         Index('idx_posts_search_vector', 'search_vector', postgresql_using='gin'),
         Index('idx_posts_hashtags', 'hashtags', postgresql_using='gin'),
         Index('idx_posts_location_geo', 'location_geo'),
@@ -370,7 +370,7 @@ class SearchHistory(Base):
     results = relationship("SearchResult", back_populates="search_history", lazy="dynamic")
     
     __table_args__ = (
-        Index('idx_search_user_date', 'user_id', 'started_at DESC'),
+        Index('idx_search_user_date', 'user_id', text('started_at DESC')),
         Index('idx_search_task_status', 'task_id', 'status'),
         Index('idx_search_status_created', 'status', 'started_at'),
     )
@@ -412,7 +412,7 @@ class SearchResult(Base):
     feedbacks = relationship("UserFeedback", back_populates="search_result", lazy="dynamic")
     
     __table_args__ = (
-        Index('idx_result_task_score', 'task_id', 'similarity_score DESC'),
+        Index('idx_result_task_score', 'task_id', text('similarity_score DESC')),
         Index('idx_result_post_task', 'post_id', 'task_id'),
         Index('idx_result_confidence', 'confidence_score', 'confidence_level'),
         Index('idx_result_created', 'created_at'),

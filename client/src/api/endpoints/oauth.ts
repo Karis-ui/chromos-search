@@ -4,7 +4,7 @@ export type OAuthProvider = "google" | "github" | "microsoft" | "apple" | "linke
 export interface OAuthProviderInfo {
     id: OAuthProvider
     name: string;
-    enable: boolean;
+    enabled: boolean;
     icon: string
 }
 

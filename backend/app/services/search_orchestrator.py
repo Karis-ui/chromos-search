@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, desc, text
 
 from app.core.logger import logger, log_search, log_performance
-from app.core.cache import cached
 from app.models.domain import SocialPost, SearchResult, SearchHistory, SearchStatus
 from app.services.ml_service import FaceRecognitionService, VoiceRecognitionService, HybridMatchingService
 from app.services.social_crawler import SocialCrawlerService
@@ -49,7 +48,7 @@ class SearchOrchestrator:
         try:
             cutoff_date = datetime.utcnow() - timedelta(days=time_range_days)
             await self._update_progress(progress_callback,10,"Calculating time window")
-            await select._update_progress(progress_callback,20,"Fetching posts from social platforms")
+            await self._update_progress(progress_callback,20,"Fetching posts from social platforms")
             posts = await self.crawler.fetch_platfrom_posts(
                 platforms=platforms,
                 since_date=cutoff_date,
@@ -93,6 +92,8 @@ class SearchOrchestrator:
             
             await self._update_progress(progress_callback,85,"Ranking results")
             ranked_matches = self._rank_results(matches)
+
+            await self._store_results(task_id, ranked_matches, user_id)
             
             await self._update_search_history(
                 task_id=task_id,
@@ -150,10 +151,10 @@ class SearchOrchestrator:
             )
             tasks = []
             for post in batch:
-                if biometric_type == "face" or bi == "hybrid":
-                    tasks.append(self._extract_face_embeddings(post))
-                elif biometric_type == "voice":
-                    tasks.append(self._extract_voice_embeddings(post))
+                if biometric_type in ("face", "hybrid"):
+                    tasks.append(self._extract_face_from_post(post))
+                if biometric_type in ("voice", "hybrid"):
+                    tasks.append(self._extract_voice_from_post(post))
             batch_results = await asyncio.gather(*tasks)
             for post,result in zip(batch,batch_results):
                 if result:
@@ -303,8 +304,8 @@ class SearchOrchestrator:
         
         return result
     
-    def _rank_results(self,matches: List[Dict[str,ANy]]) -> List[Dict[str,Any]]:
-        now = datetime.utcnow9
+    def _rank_results(self,matches: List[Dict[str,Any]]) -> List[Dict[str,Any]]:
+        now = datetime.utcnow()
         for match in matches:
             post = match["post"]
             similarity = match['similarity']

@@ -10,7 +10,6 @@ from app.core.config import settings
 from app.core.logger import setup_logging, logger, set_correlation_id, get_correlation_id
 from app.core.database import init_db, check_database_health
 from app.core.redis_client import RedisConnectionPool
-from app.core.middleware import setup_middleware
 from app.api.v1.router import router as api_v1_router
 from app.core.exceptions import ChronosException, format_error_response
 
@@ -38,7 +37,7 @@ async def lifespan(app: FastAPI):
         logger.error(f"❌ Redis connection failed: {str(e)}")
     
     logger.info(f"✅ {settings.PROJECT_NAME} is ready!")
-    logger.info(f"📍 API: http://{settings.HOST}:{settings.PORT}{settings.API_V1_STR}")
+    logger.info(f"📍 API: http://{settings.HOST}:{settings.PORT}{settings.API_V1_STR}/health")
     logger.info(f"📍 Docs: http://{settings.HOST}:{settings.PORT}/docs")
     
     yield
@@ -49,7 +48,7 @@ async def lifespan(app: FastAPI):
     await get_async_engine().dispose()
     logger.info("✅ Database connections closed")
     
-    await RedisConnectionPool.close()
+    await RedisConnectionPool.close_pool()
     logger.info("✅ Redis connections closed")
 
 def create_app() -> FastAPI:
@@ -74,7 +73,7 @@ def create_app() -> FastAPI:
     
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["*"] if settings.DEBUG else settings.ALLOWED_ORIGINS,
+        allowed_hosts=["*"] if settings.DEBUG else settings.TRUSTED_HOSTS,
     )
     
     @app.middleware("http")

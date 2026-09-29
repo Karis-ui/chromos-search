@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const { access_token, refresh_token, user: UserData } = response;
                 setAuth(UserData as User, access_token, refresh_token);
                 toast.success('Logged in successfully');
-                navigate('/login');
+                navigate('/', { replace: true });
                 return true;
             } catch (err) {
                 setError(err as string);

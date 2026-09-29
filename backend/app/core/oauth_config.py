@@ -1,8 +1,12 @@
 import enum
 from typing import Dict,List,Optional
-from pydantic import BaseModel,Field
+from pydantic import BaseModel, Field, SecretStr
 from enum import Enum
 from app.core.config import settings
+
+
+def _secret_value(value: Optional[SecretStr]) -> str:
+    return value.get_secret_value() if value else ""
 
 class OAuthProvider(str,Enum):
     github = 'github'
@@ -42,11 +46,16 @@ class OAuthSettings(BaseModel):
     
     @property
     def providers(self) -> Dict[OAuthProvider,OAuthProviderConfig]:
+        google_client_id = settings.GOOGLE_CLIENT_ID or ""
+        google_client_secret = _secret_value(settings.GOOGLE_CLIENT_SECRET)
+        github_client_id = settings.GITHUB_CLIENT_ID or ""
+        github_client_secret = _secret_value(settings.GITHUB_CLIENT_SECRET)
+
         return{
-             OAuthProvider.GOOGLE: OAuthProviderConfig(
+             OAuthProvider.google: OAuthProviderConfig(
                 name="Google",
-                client_id=getattr(settings, 'GOOGLE_CLIENT_ID', ''),
-                client_secret=getattr(settings, 'GOOGLE_CLIENT_SECRET', ''),
+            client_id=google_client_id,
+            client_secret=google_client_secret,
                 authorize_url="https://accounts.google.com/o/oauth2/v2/auth",
                 token_url="https://oauth2.googleapis.com/token",
                 userinfo_url="https://www.googleapis.com/oauth2/v3/userinfo",
@@ -56,16 +65,16 @@ class OAuthSettings(BaseModel):
                     "profile",
                 ],
                 redirect_uri=f"{self.callback_base}/google/callback",
-                enabled=bool(getattr(settings, 'GOOGLE_CLIENT_ID', '')),
+                enabled=bool(google_client_id and google_client_secret),
                 email_field="email",
                 name_field="name",
                 avatar_field="picture",
                 id_field="sub",
             ),
-            OAuthProvider.GITHUB: OAuthProviderConfig(
+            OAuthProvider.github: OAuthProviderConfig(
                 name="GitHub",
-                client_id=getattr(settings, 'GITHUB_CLIENT_ID', ''),
-                client_secret=getattr(settings, 'GITHUB_CLIENT_SECRET', ''),
+                client_id=github_client_id,
+                client_secret=github_client_secret,
                 authorize_url="https://github.com/login/oauth/authorize",
                 token_url="https://github.com/login/oauth/access_token",
                 userinfo_url="https://api.github.com/user",
@@ -74,7 +83,7 @@ class OAuthSettings(BaseModel):
                     "user:email",
                 ],
                 redirect_uri=f"{self.callback_base}/github/callback",
-                enabled=bool(getattr(settings, 'GITHUB_CLIENT_ID', '')),
+                enabled=bool(github_client_id and github_client_secret),
                 email_field="email",
                 name_field="name",
                 avatar_field="avatar_url",
@@ -102,10 +111,12 @@ class OAuthSettings(BaseModel):
         conf=self.get_provider(provider)
         return conf.client_id if conf else None
 
-oath_settings = OAuthSettings()
+oauth_settings = OAuthSettings()
+oath_settings = oauth_settings
 
 __all__ = [
     "OAuthProvider",
     "OAuthSettings",
+    "oauth_settings",
     "oath_settings",
 ]

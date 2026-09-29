@@ -1,12 +1,13 @@
 from fastapi import status
+from fastapi.responses import JSONResponse
 from typing import Optional, Dict,Any, List
 
-class ChromosException(Exception):
-    def __init__(self, message: str,context:Optional[Dict[str, Any]] = None, status_code: int = status.HTTP_400_BAD_REQUEST, details: Optional[Any] = None):
+class ChronosException(Exception):
+    def __init__(self, message: str, error_code: str = "CHRONOS_ERROR", status_code: int = status.HTTP_400_BAD_REQUEST, details: Optional[Any] = None, context: Optional[Dict[str, Any]] = None):
         self.message = message
+        self.error_code = error_code
         self.status_code = status_code
         self.details = details
-        self.error_code = error_code if details is not None else None
         self.context = context or {}
         super().__init__(message)
 
@@ -22,11 +23,9 @@ class ChromosException(Exception):
             error_response["details"] = self.details
         return error_response
     
-    def BadRequestException(ChromosException):
-        def __init__(self, message: str = "Bad Request", error_code: str = "BAD_REQUEST", details: Optional[Any] = None):
-            super().__init__(message, error_code, status.HTTP_400_BAD_REQUEST, details)
+ChromosException = ChronosException
 
-class UnauthorizedException(ChromosException):
+class UnauthorizedException(ChronosException):
     def __init__(self, message: str = "Unauthorized", error_code: str = "UNAUTHORIZED", details: Optional[Dict[str, Any]] = None):
         super().__init__(message, error_code, status.HTTP_401_UNAUTHORIZED, details)
     
@@ -75,8 +74,8 @@ class CacheException(ChromosException):
     def __init__(self, message: str = "Cache Error", error_code: str = "CACHE_ERROR", details: Optional[Dict[str, Any]] = None):
         super().__init__(message, error_code, status.HTTP_500_INTERNAL_SERVER_ERROR, details)
 
-class BadRequestException(ChromosException):
-    def __init__(self,message:str="Bad Request",error_code: str="BAD REQUEST",details=Optional[Dict[str,Any]]):
+class BadRequestException(ChronosException):
+    def __init__(self, message: str = "Bad Request", error_code: str = "BAD_REQUEST", details: Optional[Dict[str, Any]] = None):
         super().__init__(
             message=message,
             error_code=error_code,
@@ -94,23 +93,18 @@ class ExceptionHandlerFactory:
             )
         return handler
     
-    def format_error_response(self, exc: ChromosException) -> Dict[str, Any]:
-        return {
-            "error_code": exc.error_code,
-            "message": exc.message,
-            "status_code": exc.status_code,
-            "details": exc.details,
-            "context": exc.context
-        }
-        if details:
-            response["error"]["details"] = details
-        
-        if requst_id:
-            response["error"]["request_id"] = request_id
-        return response
+def format_error_response(exc: ChronosException) -> Dict[str, Any]:
+    return {
+        "error_code": exc.error_code,
+        "message": exc.message,
+        "status_code": exc.status_code,
+        "details": exc.details,
+        "context": exc.context,
+    }
 
-__all_ = [
+__all__ = [
     "ChronosException",
+    "ChromosException",
     "BadRequestException",
     "UnauthorizedException",
     "ForbiddenException",

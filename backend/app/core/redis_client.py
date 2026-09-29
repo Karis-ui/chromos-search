@@ -42,10 +42,10 @@ class RedisConnectionPool:
     @classmethod
     async def get_client(cls) -> Redis:
         if cls._client is None:
+            pool = await cls.get_pool()
             async with cls._lock:
                 logger.info("Creating new Redis client...")
                 if cls._client is None:
-                    pool = await cls.get_pool()
                     cls._client = Redis(connection_pool=pool)
         return cls._client
     

@@ -7,6 +7,8 @@ import axios, {
 import { toast } from 'react-hot-toast';
 
 interface ApiError {
+    message?: string;
+    detail?: string | Array<{ msg?: string; loc?: Array<string | number> }>;
     error: {
         code: string;
         message: string;
@@ -29,8 +31,6 @@ interface PendingRequest {
 
 class ApiClient {
     private client: AxiosInstance;
-    private accessToken: string | null = null;
-    private refreshToken: string | null = null;
     private isRefreshing = false;
     private pendingRequests: PendingRequest[] = [];
     private subscribers: ((token: string) => void)[] = [];
@@ -46,33 +46,23 @@ class ApiClient {
             withCredentials: true,
         });
         this.setupInterceptors();
-        this.loadTokens();
-    }
-
-    private loadTokens() {
-        this.accessToken = localStorage.getItem('access_token');
-        this.refreshToken = localStorage.getItem('refresh_token');
     }
     setTokens(accessToken: string, refreshToken: string) {
-        this.accessToken = accessToken;
-        this.refreshToken = refreshToken;
         localStorage.setItem('access_token', accessToken);
         localStorage.setItem('refresh_token', refreshToken);
     }
     clearTokens() {
-        this.accessToken = null;
-        this.refreshToken = null;
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
     }
     getAccessToken(): string | null {
-        return this.accessToken;
+        return localStorage.getItem('access_token');
     }
     getRefreshToken(): string | null {
-        return this.refreshToken;
+        return localStorage.getItem('refresh_token');
     }
     isAuthenticated(): boolean {
-        return !!this.accessToken;
+        return !!localStorage.getItem('access_token');
     }
 
     private onTokenRefreshed(token: string) {
@@ -82,8 +72,9 @@ class ApiClient {
     private setupInterceptors() {
         this.client.interceptors.request.use(
             (config) => {
-                if (this.accessToken) {
-                    config.headers.Authorization = `Bearer ${this.accessToken}`;
+                const accessToken = localStorage.getItem('access_token');
+                if (accessToken) {
+                    config.headers.Authorization = `Bearer ${accessToken}`;
                 }
                 const correlationId = this.generateCorrelationId();
                 config.headers['X-Correlation-ID'] = correlationId;
@@ -98,16 +89,18 @@ class ApiClient {
             (response) => response,
             async (error: AxiosError<ApiError>) => {
                 const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+                const isRefreshRequest = originalRequest.url?.includes('/auth/refresh');
 
-                if (error.response?.status === 401 && !originalRequest._retry) {
+                if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest) {
                     originalRequest._retry = true;
+                    const refreshToken = localStorage.getItem('refresh_token');
 
-                    if (this.refreshToken && !this.isRefreshing) {
+                    if (refreshToken && !this.isRefreshing) {
                         this.isRefreshing = true;
 
                         try {
                             const response = await this.client.post('/api/v1/auth/refresh', {
-                                refresh_token: this.refreshToken,
+                                refresh_token: refreshToken,
                             });
 
                             const { access_token, refresh_token } = response.data;
@@ -164,8 +157,17 @@ class ApiClient {
         if (error.response?.data?.error?.message) {
             return error.response.data.error.message;
         }
-        if (error.response?.data?.error?.message) {
-            return error.response.data.error.message;
+        if (error.response?.data?.message) {
+            return error.response.data.message;
+        }
+        if (typeof error.response?.data?.detail === 'string') {
+            return error.response.data.detail;
+        }
+        if (Array.isArray(error.response?.data?.detail)) {
+            return error.response.data.detail
+                .map((issue) => issue.msg)
+                .filter(Boolean)
+                .join(', ');
         }
         if (error.response?.statusText) {
             return error.response.statusText;

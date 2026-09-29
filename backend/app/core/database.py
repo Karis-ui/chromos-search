@@ -235,10 +235,8 @@ async def check_database_health() -> Dict[str, Any]:
 async def init_db(create_tables: bool = True) -> None:
     try:
         async with get_async_engine().begin() as conn:
-            # Enable TimescaleDB extension
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE"))
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            if settings.ENABLE_TIMESCALEDB:
+                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE"))
             
             if create_tables:
                 await conn.run_sync(Base.metadata.create_all)

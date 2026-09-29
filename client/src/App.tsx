@@ -49,6 +49,9 @@ const MorphingGrid = lazy(() =>
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const WorkspaceModulePage = lazy(() => import('./pages/WorkspaceModulePage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const ErrorPage = lazy(() => import('./pages/ErrorPage'));
 const Home = lazy(() => import('./pages/Home'));
@@ -252,27 +255,37 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
+const HomeRoute: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <Loader fullScreen text="Loading..." />;
+  }
+
+  if (isAuthenticated) {
+    return (
+      <AppLayout>
+        <SearchDashboard />
+      </AppLayout>
+    );
+  }
+
+  return <Home />;
+};
+
 const AppRouter: React.FC = () => {
   return (
     <Suspense fallback={<Loader fullScreen text="Loading module..." />}>
       <Routes>
         <Route
           path={ROUTES.HOME}
-          element={
-            <PublicRoute>
-              <LazyRoute>
-                <PageTransition>
-                  <Home />
-                </PageTransition>
-              </LazyRoute>
-            </PublicRoute>
-          }
+          element={<HomeRoute />}
         />
 
         <Route
           path={ROUTES.DASHBOARD}
           element={
-            <PublicRoute>
+            <ProtectedRoute>
               <AppLayout>
                 <LazyRoute>
                   <PageTransition>
@@ -280,7 +293,7 @@ const AppRouter: React.FC = () => {
                   </PageTransition>
                 </LazyRoute>
               </AppLayout>
-            </PublicRoute>
+            </ProtectedRoute>
           }
         />
         <Route
@@ -299,15 +312,20 @@ const AppRouter: React.FC = () => {
             </PublicRoute>
           }
         />
-
         <Route
-          path={ROUTES.HOME}
+          path={ROUTES.FORGOT_PASSWORD}
           element={
-            <ProtectedRoute>
-              <AppLayout>
-                <SearchDashboard />
-              </AppLayout>
-            </ProtectedRoute>
+            <PublicRoute>
+              <ForgotPasswordPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path={ROUTES.RESET_PASSWORD}
+          element={
+            <PublicRoute>
+              <ResetPasswordPage />
+            </PublicRoute>
           }
         />
 
@@ -321,6 +339,75 @@ const AppRouter: React.FC = () => {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path={ROUTES.RESULTS}
+          element={
+            <ProtectedRoute>
+              <AppLayout><SearchDashboard /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path={ROUTES.HISTORY}
+          element={
+            <ProtectedRoute>
+              <AppLayout><WorkspaceModulePage section="history" /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={`${ROUTES.HISTORY}/*`}
+          element={
+            <ProtectedRoute>
+              <AppLayout><WorkspaceModulePage section="history" /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.FAVORITES}
+          element={
+            <ProtectedRoute>
+              <AppLayout><WorkspaceModulePage section="favorites" /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.UPLOADS}
+          element={
+            <ProtectedRoute>
+              <AppLayout><SearchDashboard /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.MONITORING}
+          element={
+            <ProtectedRoute>
+              <AppLayout><WorkspaceModulePage section="monitoring" /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.SETTINGS}
+          element={
+            <ProtectedRoute>
+              <AppLayout><WorkspaceModulePage section="settings" /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        {[ROUTES.SETTINGS_PROFILE, ROUTES.SETTINGS_SECURITY, ROUTES.SETTINGS_NOTIFICATIONS, ROUTES.SETTINGS_API].map((path) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <ProtectedRoute>
+                <AppLayout><WorkspaceModulePage section="settings" /></AppLayout>
+              </ProtectedRoute>
+            }
+          />
+        ))}
 
         <Route
           path={ROUTES.ANALYTICS}

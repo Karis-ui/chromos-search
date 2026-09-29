@@ -55,7 +55,10 @@ export const useSearch = () => {
         },
 
         onError: (error: any) => {
-            const message = error.response?.data?.error?.message || 'Search failed to start';
+            const message = error.response?.data?.error?.message
+                || error.response?.data?.message
+                || error.response?.data?.detail
+                || 'Search failed to start';
             toast.error(`❌ ${message}`);
             setProgress(0, 'failed', message);
         },

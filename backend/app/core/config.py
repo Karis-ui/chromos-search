@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 import logging
 from pathlib import Path
+from urllib.parse import urlsplit
 import yaml
 from datetime import timedelta
 
@@ -49,13 +50,13 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Chronos Search Engine"
     PROJECT_DESCRIPTION: str = "AI-powered social media search with 6-month temporal analysis"
     VERSION: str = "3.0.0-masterpiece"
-    DEBUG: bool = False
+    DEBUG: bool = True
     ENVIRONMENT: str = "production"
     
     API_V1_STR: str = "/api/v1"
     API_V2_STR: str = "/api/v2"
     PORT: int = 8000
-    HOST: str = "0.0.0.0"
+    HOST: str = "localhost"
     WORKERS: int = 4
     WORKER_TIMEOUT: int = 300
     MAX_UPLOAD_SIZE: int = 50 * 1024 * 1024  
@@ -65,7 +66,10 @@ class Settings(BaseSettings):
         "https://chronos.example.com",
     ]
     
-    SECRET_KEY: SecretStr = Field(..., env="SECRET_KEY")
+    SECRET_KEY: SecretStr = Field(
+        default="local-development-secret-change-me",
+        env="SECRET_KEY",
+    )
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -74,8 +78,8 @@ class Settings(BaseSettings):
     
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
-    POSTGRES_USER: str = Field(..., env="POSTGRES_USER")
-    POSTGRES_PASSWORD: SecretStr = Field(..., env="POSTGRES_PASSWORD")
+    POSTGRES_USER: str = Field("chronos_user", env="POSTGRES_USER")
+    POSTGRES_PASSWORD: SecretStr = Field("chronos_pass", env="POSTGRES_PASSWORD")
     POSTGRES_DB: str = "chronos"
     POSTGRES_POOL_SIZE: int = 20
     POSTGRES_MAX_OVERFLOW: int = 40
@@ -83,12 +87,25 @@ class Settings(BaseSettings):
     POSTGRES_ECHO: bool = False
     POSTGRES_POOL_PRE_PING: bool = True
     POSTGRES_POOL_RECYCLE: int = 3600
+    ENABLE_TIMESCALEDB: bool = False
     GOOGLE_CLIENT_ID: Optional[str] = Field(None, env="GOOGLE_CLIENT_ID")
     GOOGLE_CLIENT_SECRET: Optional[SecretStr] = Field(None, env="GOOGLE_CLIENT_SECRET")
     GITHUB_CLIENT_ID: Optional[str] = Field(None, env="GITHUB_CLIENT_ID")
     GITHUB_CLIENT_SECRET: Optional[SecretStr] = Field(None, env="GITHUB_CLIENT_SECRET")
     BACKEND_URL: str = Field("http://localhost:8000", env="BACKEND_URL")
     FRONTEND_URL: str = Field("http://localhost:3000", env="FRONTEND_URL")
+
+    @property
+    def TRUSTED_HOSTS(self) -> List[str]:
+        hosts = {"localhost", "127.0.0.1"}
+        for url in [*self.ALLOWED_ORIGINS, self.BACKEND_URL]:
+            hostname = urlsplit(url).hostname
+            if hostname:
+                hosts.add(hostname)
+        if self.HOST not in {"0.0.0.0", "::"}:
+            hosts.add(self.HOST)
+        return sorted(hosts)
+
     OAUTH_STATE_EXPIRE_SECONDS: int = 600 
     OAUTH_ALLOW_ACCOUNT_LINKING: bool = True
     OAUTH_AUTO_CREATE_USERS: bool = True
@@ -129,8 +146,8 @@ class Settings(BaseSettings):
     def REDIS_URL_BACKEND(self) -> str:
         return f"{self.REDIS_URL}/1"
     
-    CELERY_BROKER_URL: str = Field(default=None, env="CELERY_BROKER_URL")
-    CELERY_RESULT_BACKEND: str = Field(default=None, env="CELERY_RESULT_BACKEND")
+    CELERY_BROKER_URL: Optional[str] = Field(default=None, env="CELERY_BROKER_URL")
+    CELERY_RESULT_BACKEND: Optional[str] = Field(default=None, env="CELERY_RESULT_BACKEND")
     
     @property
     def CELERY_BROKER(self) -> str:
@@ -251,7 +268,7 @@ class Settings(BaseSettings):
     SEARCH_RESULTS_LIMIT: int = 1000
     SEARCH_CACHE_TTL: int = 300
     SEARCH_CONCURRENT_REQUESTS: int = 10
-    TEST_DATABASE_URL = "postgresql+asyncpg://chronos_user:chronos_pass@localhost:5432/chronos_test"
+    TEST_DATABASE_URL: str = "postgresql+asyncpg://chronos_user:chronos_pass@localhost:5432/chronos_test"
     
     @validator("ENVIRONMENT")
     def validate_environment(cls, v):
@@ -274,7 +291,7 @@ class Settings(BaseSettings):
             raise ValueError(f"WHISPER_DEVICE must be one of {allowed}")
         return v
     
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_social_tokens(cls, values):
         if values.get("ENVIRONMENT") == "production":
             social_tokens = [
@@ -290,7 +307,7 @@ class Settings(BaseSettings):
                 )
         return values
     
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def create_directories(cls, values):
         dirs = [
             values.get("UPLOAD_DIR", "uploads"),
