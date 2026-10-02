@@ -28,7 +28,7 @@ def get_async_engine() -> AsyncEngine:
     global async_engine
     
     if async_engine is None:
-        logger.info(f"🔌 Creating async database engine for {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}")
+        logger.info(f"Creating async database engine for {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}")
         
         try:
             async_engine = create_async_engine(
@@ -62,10 +62,10 @@ def get_async_engine() -> AsyncEngine:
             def close(dbapi_connection, connection_record):
                 logger.debug("Database connection closed")
             
-            logger.info("✅ Database engine created successfully")
+            logger.info("Database engine created successfully")
             
         except Exception as e:
-            logger.error(f"❌ Failed to create database engine: {str(e)}", exc_info=True)
+            logger.error(f"Failed to create database engine: {str(e)}", exc_info=True)
             raise DatabaseException(
                 message="Database connection failed",
                 details={"error": str(e)}
@@ -241,10 +241,10 @@ async def init_db(create_tables: bool = True) -> None:
             if create_tables:
                 await conn.run_sync(Base.metadata.create_all)
             
-            logger.info("✅ Database initialized successfully")
+            logger.info("Database initialized successfully")
             
     except Exception as e:
-        logger.error(f"❌ Database initialization failed: {str(e)}", exc_info=True)
+        logger.error(f"Database initialization failed: {str(e)}", exc_info=True)
         raise DatabaseException(
             message="Database initialization failed",
             details={"error": str(e)}
@@ -254,7 +254,7 @@ async def drop_all_tables() -> None:
     try:
         async with get_async_engine().begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
-        logger.warning("⚠️ All tables dropped")
+        logger.warning("All tables dropped")
     except Exception as e:
         logger.error(f"Failed to drop tables: {str(e)}", exc_info=True)
         raise

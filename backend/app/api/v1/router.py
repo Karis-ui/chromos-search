@@ -7,6 +7,7 @@ from app.api.v1.endpoints import (
     feedback,
     health,
     search,
+    consent,
 )
 
 router = APIRouter()
@@ -18,3 +19,4 @@ router.include_router(admin.router, tags=["Administration"])
 router.include_router(feedback.router, tags=["Feedback"])
 router.include_router(search.router, tags=["Search"])
 router.include_router(health.router, prefix="/health", tags=["Health Check"])
+router.include_router(consent.router, prefix="/consent", tags=["Consent"])

@@ -539,6 +539,186 @@ class OAuthState(Base):
         Index('idx_oauth_state_expires', 'expires_at'),
     )
 
+class ConsentProfile(Base):
+    __tablename__ = "consent_profiles"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    consent_given = Column(Boolean, default=False, nullable=False, index=True)
+    consent_version = Column(String(20), nullable=False, default="v1.0")
+    consent_given_at = Column(DateTime(timezone=True))
+    consent_ip_address = Column(String(45))
+    consent_user_agent = Column(Text)
+    consent_signature = Column(String(255)) 
+    
+    display_name = Column(String(255), nullable=False)
+    bio = Column(Text)
+    location = Column(String(255))
+    occupation = Column(String(255))
+    company = Column(String(255))
+    
+    primary_face_embedding = Column(JSONB)     
+    face_embeddings = Column(JSONB, default=list)   
+    face_thumbnail_url = Column(Text)
+    face_count = Column(Integer, default=0)
+    
+    social_links = Column(JSONB, default=dict)
+    
+    contact_email = Column(String(255))
+    contact_phone = Column(String(20))
+    allow_direct_messages = Column(Boolean, default=True)
+    allow_email_contact = Column(Boolean, default=False)
+    allow_phone_contact = Column(Boolean, default=False)
+    
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    is_featured = Column(Boolean, default=False)
+    is_verified = Column(Boolean, default=False)
+    
+    total_earnings = Column(Numeric(10, 2), default=0)
+    pending_earnings = Column(Numeric(10, 2), default=0)
+    lifetime_searches = Column(Integer, default=0)
+    monthly_searches = Column(Integer, default=0)
+    last_reward_at = Column(DateTime(timezone=True))
+    profile_views = Column(Integer, default=0)
+    search_appearances = Column(Integer, default=0)
+    click_throughs = Column(Integer, default=0)
+    
+    revoked_at = Column(DateTime(timezone=True))
+    revocation_reason = Column(Text)
+    revocation_ip = Column(String(45))
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_searched_at = Column(DateTime(timezone=True))
+    
+    user = relationship("User", backref=backref("consent_profile", uselist=False))
+    photos = relationship(
+        "ConsentPhoto",
+        back_populates="profile",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    search_logs = relationship(
+        "ConsentSearchLog",
+        back_populates="profile",
+        cascade="all, delete-orphan",
+    )
+    
+    __table_args__ = (
+        Index('idx_consent_active_given', 'is_active', 'consent_given'),
+        Index('idx_consent_display_name', 'display_name'),
+        Index('idx_consent_created', 'created_at'),
+    )
+
+
+class ConsentPhoto(Base):
+    """Individual photos uploaded for consent-based search"""
+    __tablename__ = "consent_photos"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    profile_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("consent_profiles.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    
+    # ── Photo Data ──
+    photo_url = Column(Text, nullable=False)
+    thumbnail_url = Column(Text)
+    photo_hash = Column(String(64))
+    file_size = Column(Integer)
+    width = Column(Integer)
+    height = Column(Integer)
+    
+    # ── Face Data ──
+    face_embedding = Column(JSONB)
+    face_bbox = Column(JSONB)
+    face_landmarks = Column(JSONB)
+    face_quality_score = Column(Float)
+    face_confidence = Column(Float)
+    
+    # ── Metadata ──
+    is_primary = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True, index=True)
+    display_order = Column(Integer, default=0)
+    
+    # ── Timestamps ──
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # ── Relationships ──
+    profile = relationship("ConsentProfile", back_populates="photos")
+    
+    __table_args__ = (
+        Index('idx_consent_photo_profile_active', 'profile_id', 'is_active'),
+    )
+    
+    def __repr__(self) -> str:
+        return f"<ConsentProfile {self.profile_type} for {self.user_id}>"
+
+class ConsentSearchLog(Base):
+    __tablename__="consent_search_logs"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    profile_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("consent_profiles.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    searcher_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    search_task_id = Column(String(255), index=True)
+    similarity_score = Column(Float, nullable=False)
+    confidence_level = Column(String(20))
+    rank_position = Column(Integer)
+    
+    reward_amount = Column(Numeric(10, 4), default=0)
+    reward_paid = Column(Boolean, default=False)
+    
+    was_clicked = Column(Boolean, default=False)
+    was_contacted = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    
+    profile = relationship("ConsentProfile", back_populates="search_logs")
+    __table_args__ = (
+        Index('idx_consent_log_profile_date', 'profile_id', 'created_at'),
+        Index('idx_consent_log_task', 'search_task_id'),
+    )
+
+class RewardLedger(Base):
+    __tablename__="reward_ledger"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    amount = Column(Numeric(10, 4), nullable=False)
+    reward_type = Column(String(20), nullable=False)
+    status = Column(String(20),default="pending",index=True)
+    currency = Column(String(3), nullable=False, default="USD")
+    description = Column(Text)
+    transaction_hash = Column(String(255))
+    search_log_id = Column(UUID(as_uuid=True), ForeignKey("consent_search_logs.id"))
+    paid_at = Column(DateTime(timezone=True))
+    payout_method = Column(String(50))
+    payout_reference = Column(String(255))
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    profile_id = Column(UUID(as_uuid=True),ForeignKey("consent_profiles.id"))
+    __table_args__ = (
+        Index('idx_reward_ledger_user', 'user_id', 'created_at'),
+        Index('idx_reward_user_status', 'user_id', 'status'),
+    )
+
 __all__ = [
     "MediaType",
     "Platform", 
@@ -556,4 +736,8 @@ __all__ = [
     "Notification",
     "OAuthAccount",
     "OAuthState",
+    "ConsentProfile",
+    "ConsentPhoto",
+    "ConsentSearchLog",
+    "RewardLedger",
 ]

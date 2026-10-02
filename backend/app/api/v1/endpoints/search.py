@@ -1,3 +1,12 @@
+from typing import Any
+from app.core.security import get_current_user
+from app.core.database import get_db
+from fastapi import Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List
+from typing import Dict
+from typing import Optional
+from pydantic import BaseModel
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -107,3 +116,147 @@ async def initiate_search(
         "platforms_searched": selected_platforms,
         "time_range_days": time_range_days,
     }
+
+class UnifiedResult(BaseModel):
+    source: str  
+    similarity: float
+    confidence_level: str
+    rank: int
+    final_score: float
+
+    profile_id: Optional[str] = None
+    user_id: Optional[str] = None
+    display_name: Optional[str] = None
+    bio: Optional[str] = None
+    location: Optional[str] = None
+    occupation: Optional[str] = None
+    company: Optional[str] = None
+    social_links: Optional[Dict[str, str]] = None
+    is_verified: Optional[bool] = None
+    is_featured: Optional[bool] = None
+    allow_direct_messages: Optional[bool] = None
+
+    post_id: Optional[str] = None
+    platform: Optional[str] = None
+    url: Optional[str] = None
+    posted_at: Optional[str] = None
+    caption: Optional[str] = None
+    author_username: Optional[str] = None
+    likes: Optional[int] = None
+    shares: Optional[int] = None
+    comments: Optional[int] = None
+
+    thumbnail: Optional[str] = None
+    face_score: Optional[float] = None
+    voice_score: Optional[float] = None
+    match_type: Optional[str] = None
+
+class UnifiedResultsResponse(BaseModel):
+    task_id: str
+    status: str
+    consent_count: int
+    social_count: int
+    total_count: int
+    results: List[UnifiedResult]
+    duration_ms: float
+
+@router.get("/unified-results/{task_id}",
+    response_model=UnifiedResultsResponse,
+    summary="Get unified results (consent + social)",
+)
+async def get_unified_results(
+    task_id: str,
+    limit: int = Query(200, ge=1, le=500),
+    source: Optional[str] = Query(None, regex="^(consent|social|all)$"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    redis = Depends(get_redis),
+):
+    import json
+    status_data = await redis.hgetall(f"search:task:{task_id}")
+    if not status_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found.",
+        )
+    
+    if status_data.get("user_id") != str(current_user.id):
+        if current_user.id not in ['admin','super_admin']:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied.",
+            )
+    
+    cached_key = f"search:unified:{task_id}"
+    cached_data = await redis.get(cached_key)
+
+    if cached_data:
+        data = json.loads(cached_data)
+        
+    else:
+        from sqlalchemy import select, desc
+        from app.models.domain import SearchResult, SocialPost
+        from app.services.consent_service import ConsentService
+
+        consent_service = ConsentService(db)
+        consent_cache = await redis.get(f"consent:search:{task_id}")
+        consent_matches = json.loads(consent_cache) if  consent_cache else []
+        stat = (
+            select(SearchResult, SocialPost)
+            .join(SocialPost, SearchResult.post_id == SocialPost.id)
+            .where(SearchResult.task_id == task_id)
+            .order_by(desc(SearchResult.similarity_score))
+            .limit(limit)
+        )
+        result = await db.execute(stat)
+        rows = result.al()
+        social_matches = []
+        for search_result , post in rows:
+            social_matches.append({
+                "source": "social",
+                "post_id": str(post.id),
+                "platform": post.platform.value,
+                "url": post.platform_url,
+                "thumbnail": post.thumbnail_url or post.media_url,
+                "posted_at": post.posted_at.isoformat() if post.posted_at else None,
+                "caption": post.caption,
+                "author_username": post.author_username,
+                "likes": post.likes or 0,
+                "shares": post.shares or 0,
+                "comments": post.comments or 0,
+                "similarity": search_result.similarity_score,
+                "confidence_level": search_result.confidence_level.value if search_result.confidence_level else "unknown",
+                "face_score": search_result.face_match_score or 0,
+                "voice_score": search_result.voice_match_score or 0,
+                "match_type": search_result.method_used or "face",
+            })
+        all_results = consent_matches + social_matches
+        all_results.sort(key=lambda x: x['similarity'], reverse=True)
+        for idx,r in enumerate(all_results):
+            r["rank"] = idx + 1
+            r['final_score'] = r.get('similarity',0) * (1.1 if r['source'] == "consent" else 1.0)
+        await redis.set(cached_key,json.dumps(all_results),ex=3600)
+        data = {
+            "task_id": task_id,
+            "status": status_data.get("status", "completed"),
+            "consent_count": len(consent_matches),
+            "social_count": len(social_matches),
+            "total_count": len(all_results),
+            "results": all_results,
+            "duration_ms": 0,
+        }
+
+        await redis.setex(cached_key,300,json.dumps(data))
+    if source and source != 'all':
+        results: list[dict[str, Any]] = data.get("results", [])   
+    
+    results = results[:limit]
+    return UnifiedResultsResponse(
+        task_id=data["task_id"],
+        status=data["status"],
+        consent_count=data["consent_count"],
+        social_count=data["social_count"],
+        total_count=len(results),
+        results=[UnifiedResult(**r) for r in results],
+        duration_ms=data.get("duration_ms", 0),
+    )

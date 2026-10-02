@@ -129,7 +129,6 @@ async def _execute_search(
         )
         
         async def progress_callback(progress: int, message: str):
-            """Update progress in Redis and broadcast via pub/sub"""
             await redis_client.hset(
                 f"search:task:{task_id}",
                 "progress",
@@ -165,6 +164,12 @@ async def _execute_search(
             progress_callback=progress_callback,
         )
         
+        if result.get("matches"):
+            consent_matches = [m for m in result["matches"] if m["source"] == "consent"]
+            if consent_matches:
+                await get_redis.setex(
+                    f"search:consent:{task_id}",3600,json.dumps(consent_matches)
+                )
         matches = result.get("matches", [])
         for match in matches[:50]:
             await redis_client.publish(

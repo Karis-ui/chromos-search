@@ -12,6 +12,7 @@ from app.services.ml_service import FaceRecognitionService, VoiceRecognitionServ
 from app.services.social_crawler import SocialCrawlerService
 from app.core.redis_client import CacheService
 from app.core.exceptions import SearchException, MLException
+from app.services.consent_service import ConsentService
 
 class SearchOrchestrator:
     def __init__(
@@ -41,100 +42,179 @@ class SearchOrchestrator:
         min_confidence: float = 0.68,
         user_id: Optional[str] = None,
         progress_callback: Optional[callable] = None,
-    ) -> Dict[str,Any]:
+    ) -> Dict[str, Any]: 
         start_time = time.time()
-        results = []
-        total_posts_scanned = 0
         try:
             cutoff_date = datetime.utcnow() - timedelta(days=time_range_days)
-            await self._update_progress(progress_callback,10,"Calculating time window")
-            await self._update_progress(progress_callback,20,"Fetching posts from social platforms")
-            posts = await self.crawler.fetch_platfrom_posts(
+            await self._update_progress(progress_callback,10,"Calculating time window....")
+            consent_searches = []
+            if face_embedding is not None and biometric_type in ['face','hybrid']:
+                try:
+                    await self._update_progress(progress_callback,10,"Searching consent profiles...")
+                    consent_service = ConsentService(self.db)
+                    consent_matches = await consent_service.search_consent_profiles(
+                        target_embedding=face_embedding,min_similarity=min_confidence,limit=100
+                    )
+                    logger.info(f"🟢 Found {len(consent_matches)} consent matches")
+                    for idx,match in enumerate(consent_matches):
+                        try:
+                            await consent_service.log_search_appearances(
+                                profile_id=match["profile_id"],
+                            search_task_id=task_id,
+                            similarity=match["similarity"],
+                            confidence_level=match["confidence_level"],
+                            rank_position=idx + 1,
+                            searcher_id=user_id,
+                            searcher_tier="free",
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to log consent appearance:")
+
+                except Exception as e:
+                    logger.error(f"Consent search failed: {str(e)}")
+                    consent_matches = []
+            
+            await self._update_progress(progress_callback,20,"Searching public profiles...")
+            posts = await self.crawler.fetch_platform_posts(
                 platforms=platforms,
                 since_date=cutoff_date,
-                limit=10000,
-                progress_callback=progress_callback
+                limit=1000,
+                target_embedding=face_embedding,
+                progress_callback=progress_callback,
             )
-            total_posts_scanned = len(posts)
-            await self._update_progress(progress_callback,40,f"Retrieved {total_posts_scanned} posts")
-            
-            if not posts:
-                await self._update_progress(progress_callback,100,"No posts found")
-                return{
-                    "status": "no_posts",
-                    "matches": [],
-                    "total_scanned": 0,
-                    "duration_ms": (time.time() - start_time) * 1000,
-                }
-            await self._update_progress(progress_callback,50,"Extracting biometric features")
-            posts_with_embeddings = await self._extract_post_embeddings(
-                post=posts,
-                biometric_type=biometric_type,
-                progress_callback=progress_callback
+        
+            total_scanned = len(posts)
+            logger.info(f"📊 Fetched {total_scanned} social posts")
+        
+            await self._update_progress(
+                progress_callback,
+                45,
+                f"Analyzing {total_scanned} social posts...",
             )
-            if not posts_with_embeddings:
-                await self._update_progress(progress_callback,100,"No biometric features found")
-                return{
-                    "status": "no_features",
-                    "matches": [],
-                    "total_scanned": total_posts_scanned,
-                    "duration_ms": (time.time() - start_time) * 1000,
-                }
+            posts_with_emb = [p for p in posts if p.face_embedding is not None]
+        
+            social_matches = []
+            if posts_with_emb and face_embedding is not None:
+                await self._update_progress(progress_callback, 60, "Comparing biometrics...")
             
-            await self._update_progress(progress_callback,70,"Matching biometric signatures")
-            matches = await self._perform_matching(
+            social_matches = await self._perform_matching(
                 target_face=face_embedding,
                 target_voice=voice_embedding,
-                posts=posts_with_embeddings,
+                posts=posts_with_emb,
                 min_confidence=min_confidence,
                 biometric_type=biometric_type,
             )
             
-            await self._update_progress(progress_callback,85,"Ranking results")
-            ranked_matches = self._rank_results(matches)
-
-            await self._store_results(task_id, ranked_matches, user_id)
+            logger.info(f"🔵 Found {len(social_matches)} social matches")
+            await self._update_progress(progress_callback, 80, "Ranking results...")
             
+            unified_consent = [
+                {
+                    "source": "consent",
+                    "profile_id": m["profile_id"],
+                    "user_id": m["user_id"],
+                    "display_name": m["display_name"],
+                    "bio": m.get("bio"),
+                    "location": m.get("location"),
+                    "occupation": m.get("occupation"),
+                    "company": m.get("company"),
+                    "thumbnail": m.get("thumbnail"),
+                    "social_links": m.get("social_links", {}),
+                    "is_verified": m.get("is_verified", False),
+                    "is_featured": m.get("is_featured", False),
+                    "allow_direct_messages": m.get("allow_direct_messages", True),
+                    "similarity": m["similarity"],
+                    "confidence_level": m["confidence_level"],
+                    "face_score": m["similarity"],
+                    "voice_score": 0.0,
+                    "match_type": "face",
+                }
+                for m in consent_matches
+            ]
+            
+            unified_social = []
+            for m in social_matches:
+                post = m["post"]
+                unified_social.append({
+                    "source": "social",
+                    "post_id": str(post.id),
+                    "platform": post.platform.value if hasattr(post.platform, 'value') else str(post.platform),
+                    "url": post.platform_url,
+                    "thumbnail": post.thumbnail_url or post.media_url,
+                    "posted_at": post.posted_at.isoformat() if post.posted_at else None,
+                    "caption": post.caption,
+                    "author_username": post.author_username,
+                    "author_full_name": post.author_full_name,
+                    "likes": post.likes or 0,
+                    "shares": post.shares or 0,
+                    "comments": post.comments or 0,
+                    "location": post.location,
+                    "similarity": m["similarity"],
+                    "confidence_level": self._get_confidence_level(m["similarity"]),
+                    "face_score": m.get("face_score", 0),
+                    "voice_score": m.get("voice_score", 0),
+                    "match_type": m.get("match_type", "face"),
+                })
+        
+                all_matches = unified_consent + unified_social
+        
+            for match in all_matches:
+                source_boost = 1.1 if match["source"] == "consent" else 1.0
+                match["final_score"] = match["similarity"] * source_boost
+        
+            all_matches.sort(key=lambda x: x["final_score"], reverse=True)
+        
+            for idx, match in enumerate(all_matches):
+                match["rank"] = idx + 1
+        
+            await self._update_progress(progress_callback, 90, "Saving results...")
+        
+            if social_matches:
+                await self._store_results(task_id, social_matches, user_id)
+        
             await self._update_search_history(
                 task_id=task_id,
                 status=SearchStatus.COMPLETED,
-                results_count=len(ranked_matches),
-                top_confidence=ranked_matches[0]["similarity"] if ranked_matches else 0,
+                results_count=len(all_matches),
+                top_confidence=all_matches[0]["similarity"] if all_matches else 0,
                 duration_ms=(time.time() - start_time) * 1000,
             )
-            await self._update_progress(progress_callback,100,f"Search complete! Found {len(ranked_matches)} matches")
+        
+            await self._update_progress(
+                progress_callback,
+                100,
+                f"Found {len(all_matches)} matches ({len(consent_matches)} consent, {len(social_matches)} social)",
+            )
+        
             log_search(
                 task_id=task_id,
                 user_id=user_id or "anonymous",
                 platforms=platforms,
                 time_range_days=time_range_days,
-                results_count=len(ranked_matches),
+                results_count=len(all_matches),
                 duration_ms=(time.time() - start_time) * 1000,
-                status="complete"
+                status="completed",
             )
+        
             return {
                 "status": "completed",
-                "matches": ranked_matches[:100], 
-                "total_scanned": total_posts_scanned,
-                "total_matches": len(ranked_matches),
+                "matches": all_matches[:200],  # Top 200
+                "consent_count": len(consent_matches),
+                "social_count": len(social_matches),
+                "total_count": len(all_matches),
+                "total_scanned": total_scanned,
                 "duration_ms": (time.time() - start_time) * 1000,
             }
+        
         except Exception as e:
-            logger.error(f"Search execution failed: {str(e)}", exc_info=True)
+            logger.error(f"Search failed: {str(e)}", exc_info=True)
             await self._update_search_history(
                 task_id=task_id,
                 status=SearchStatus.FAILED,
-                error_message=str(e)
-            ) 
-            raise SearchException(
-                message=f"Search failed: {str(e)}",
-                details={
-                    "task_id": task_id,
-                    "platforms": platforms,
-                    "time_range_days": time_range_days,
-                }
+                error_message=str(e),
             )
-            
+            raise SearchException(message=f"Search failed: {str(e)}")
+                          
     async def _extract_post_embeddings(
         self,
         posts: List[SocialPost],
@@ -174,7 +254,7 @@ class SearchOrchestrator:
                 async with httpx.AsyncClient() as client:
                     response = await client.get(post.media_url, timeout=30)
                     if response.status_code == 200:
-                        face_result = await self.face_service.extract_face_embedding(
+                        face_result = self.face_service.extract_face_embedding(
                             response.content
                         )
                         if face_result:

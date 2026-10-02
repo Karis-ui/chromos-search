@@ -38,6 +38,7 @@ export const ROUTES = {
     NOTFOUND: '/404',
     COMPARE: '/compare',
     PREMIUM: '/premium',
+    CONSENT: '/consent',
 
     ADMIN: '/admin',
     ADMIN_DASHBOARD: '/admin/dashboard',

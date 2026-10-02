@@ -24,6 +24,7 @@ const LoginPage = lazy(() => import('../pages/LoginPage'));
 const RegisterPage = lazy(() => import('../pages/RegisterPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 const ErrorPage = lazy(() => import('../pages/ErrorPage'));
+const ConsentPage = lazy(() => import('../pages/ConsentPage'));
 
 interface AppShellProps {
     children: React.ReactNode;
@@ -68,7 +69,7 @@ export const AppRoutes: React.FC = () => {
     useEffect(() => {
         const path = location.pathname;
         const titles: Record<string, string> = {
-            [ROUTES.HOME]: 'Dashboard',
+            [ROUTES.DASHBOARD]: 'Dashboard',
             [ROUTES.LOGIN]: 'Login',
             [ROUTES.REGISTER]: 'Register',
             [ROUTES.ANALYTICS]: 'Analytics',
@@ -79,7 +80,7 @@ export const AppRoutes: React.FC = () => {
             [ROUTES.ADMIN]: 'Admin',
         };
         const pageTitle = titles[path] || 'Page';
-        document.title = `${pageTitle} | ChromaSearch`;
+        document.title = `${pageTitle} | ChromosSearch`;
     }, [location.pathname]);
 
     return (
@@ -124,24 +125,21 @@ export const AppRoutes: React.FC = () => {
                             </PublicRoute>
                         }
                     />
-
                     <Route
-                        path={ROUTES.HOME}
+                        path={ROUTES.CONSENT}
                         element={
                             <ProtectedRoute>
-                                <AppShell>
-                                    <LazyRoute>
-                                        <PageTransition>
-                                            <SearchDashboard />
-                                        </PageTransition>
-                                    </LazyRoute>
-                                </AppShell>
+                                <LazyRoute>
+                                    <PageTransition>
+                                        <ConsentPage />
+                                    </PageTransition>
+                                </LazyRoute>
                             </ProtectedRoute>
                         }
                     />
 
                     <Route
-                        path={ROUTES.SEARCH}
+                        path={ROUTES.DASHBOARD}
                         element={
                             <ProtectedRoute>
                                 <AppShell>

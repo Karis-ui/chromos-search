@@ -3860,3 +3860,38 @@ fastapi.exceptions.HTTPException: 501: The search API is reachable, but image/vi
 2026-09-29 16:30:57 | INFO     | 5946118b | Response: GET /api/v1/health -> 307
 2026-09-29 16:30:57 | INFO     | 5946118b | Request: GET /api/v1/health/
 2026-09-29 16:30:57 | INFO     | 5946118b | Response: GET /api/v1/health/ -> 200
+2026-09-29 20:17:34 | INFO     | 5946118b | 🛑 Chronos Search Engine shutting down...
+2026-09-29 20:17:34 | INFO     | 5946118b | ✅ Database connections closed
+2026-09-29 20:17:34 | INFO     | 5946118b | ✅ Redis connections closed
+2026-09-29 20:17:39 | INFO     | cc38dd6d | 🔌 Creating async database engine for localhost:5432/chronos
+2026-09-29 20:17:39 | INFO     | cc38dd6d | ✅ Database engine created successfully
+2026-09-29 20:25:59 | INFO     | a58016e8 | 🔌 Creating async database engine for localhost:5432/chronos
+2026-09-29 20:25:59 | INFO     | a58016e8 | ✅ Database engine created successfully
+2026-09-29 20:28:24 | INFO     | d5232927 | 🔌 Creating async database engine for localhost:5432/chronos
+2026-09-29 20:28:24 | INFO     | d5232927 | ✅ Database engine created successfully
+2026-09-29 20:33:11 | INFO     | 676221f7 | 🔌 Creating async database engine for localhost:5432/chronos
+2026-09-29 20:33:11 | INFO     | 676221f7 | ✅ Database engine created successfully
+2026-09-29 20:33:35 | INFO     | 2a070f59 | 🔌 Creating async database engine for localhost:5432/chronos
+2026-09-29 20:33:36 | INFO     | 2a070f59 | ✅ Database engine created successfully
+2026-09-30 02:02:13 | INFO     | 14c25a1a | 🔌 Creating async database engine for localhost:5432/chronos
+2026-09-30 02:02:13 | INFO     | 14c25a1a | ✅ Database engine created successfully
+2026-09-30 02:03:40 | INFO     | 2eede08f | 🔌 Creating async database engine for localhost:5432/chronos
+2026-09-30 02:03:40 | INFO     | 2eede08f | ✅ Database engine created successfully
+2026-09-30 02:04:15 | INFO     | c6a67409 | 🔌 Creating async database engine for localhost:5432/chronos
+2026-09-30 02:04:15 | INFO     | c6a67409 | ✅ Database engine created successfully
+2026-09-30 02:05:31 | INFO     | 8d6c64d9 | 🔌 Creating async database engine for localhost:5432/chronos
+2026-09-30 02:05:31 | INFO     | 8d6c64d9 | ✅ Database engine created successfully
+2026-09-30 02:06:51 | INFO     | 94689c2e | 🔌 Creating async database engine for localhost:5432/chronos
+2026-09-30 02:06:51 | INFO     | 94689c2e | ✅ Database engine created successfully
+2026-09-30 03:06:58 | INFO     | dd07f196 | 🔌 Creating async database engine for localhost:5432/chronos
+2026-09-30 03:06:58 | INFO     | dd07f196 | ✅ Database engine created successfully
+2026-09-30 12:54:04 | INFO     | 1f2f510c | 🔌 Creating async database engine for localhost:5432/chronos
+2026-09-30 12:54:04 | INFO     | 1f2f510c | ✅ Database engine created successfully
+2026-09-30 12:54:50 | INFO     | 91b67580 | 🔌 Creating async database engine for localhost:5432/chronos
+2026-09-30 12:54:50 | INFO     | 91b67580 | ✅ Database engine created successfully
+2026-09-30 12:57:45 | INFO     | 9f73257d | Creating async database engine for localhost:5432/chronos
+2026-09-30 12:57:45 | INFO     | 9f73257d | Database engine created successfully
+2026-09-30 12:58:04 | INFO     | 2994b210 | Creating async database engine for localhost:5432/chronos
+2026-09-30 12:58:04 | INFO     | 2994b210 | Database engine created successfully
+2026-09-30 12:58:58 | INFO     | df6b5792 | Creating async database engine for localhost:5432/chronos
+2026-09-30 12:58:59 | INFO     | df6b5792 | Database engine created successfully

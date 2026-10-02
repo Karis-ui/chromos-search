@@ -1,3 +1,4 @@
+from app.core.config import logger
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import List, Optional
@@ -59,23 +60,55 @@ class FaceRecognitionService:
             confidence=float(face.det_score),
         )
 
-    def batch_compare(self, target: np.ndarray, candidates: List[np.ndarray]) -> List[float]:
-        target_vector = np.asarray(target, dtype=np.float32).reshape(-1)
-        target_norm = np.linalg.norm(target_vector)
-        if target_norm == 0:
-            return [0.0 for _ in candidates]
-        target_vector = target_vector / target_norm
-
-        scores = []
-        for candidate in candidates:
-            candidate_vector = np.asarray(candidate, dtype=np.float32).reshape(-1)
-            if candidate_vector.shape != target_vector.shape:
-                scores.append(0.0)
-                continue
-            candidate_norm = np.linalg.norm(candidate_vector)
-            score = float(np.dot(target_vector, candidate_vector / candidate_norm)) if candidate_norm else 0.0
-            scores.append(max(0.0, min(1.0, score)))
-        return scores
+    def batch_compare(
+        self,
+        target_emb: np.ndarray,
+        candidates: List[np.ndarray],
+        metric: str = 'cosine',
+    ) -> List[float]:
+        if not candidates or target_emb is None:
+            return []
+        
+        try:
+            valid_candidates = [c for c in candidates if c is not None]
+            if not valid_candidates:
+                return []
+            
+            target = np.asarray(target_emb, dtype=np.float32)
+            cand_array = np.asarray(valid_candidates, dtype=np.float32)
+            
+            if target.ndim != 1 or cand_array.ndim != 2:
+                logger.warning(f"Invalid embedding shapes")
+                return [0.0] * len(candidates)
+            
+            target_norm = target / (np.linalg.norm(target) + 1e-8)
+            cand_norms = np.linalg.norm(cand_array, axis=1, keepdims=True) + 1e-8
+            candidates_normalized = cand_array / cand_norms
+            
+            if metric in ('cosine', 'dot'):
+                similarities = np.dot(candidates_normalized, target_norm)
+            elif metric == 'euclidean':
+                distances = np.linalg.norm(candidates_normalized - target_norm, axis=1)
+                similarities = 1.0 / (1.0 + distances)
+            else:
+                raise ValueError(f"Unknown metric: {metric}")
+            
+            similarities = np.clip(similarities, 0.0, 1.0)
+            
+            result = []
+            valid_idx = 0
+            for c in candidates:
+                if c is None:
+                    result.append(0.0)
+                else:
+                    result.append(float(similarities[valid_idx]))
+                    valid_idx += 1
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Batch comparison failed: {str(e)}", exc_info=True)
+            return [0.0] * len(candidates)
 
 
 class VoiceRecognitionService:
