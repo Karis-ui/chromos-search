@@ -50,7 +50,6 @@ import {
     FiSettings,
     FiBell,
     FiMenu,
-
     FiWifi,
     FiWifiOff,
     FiAlertTriangle,
@@ -59,7 +58,8 @@ import {
     FiHeart,
     FiStar,
     FiRadio,
-    FiMessageCircle,
+    FiShield,
+    FiGlobe as FiGlobeIcon,
 } from 'react-icons/fi';
 
 import { GlassCard } from '../common/GlassCard';
@@ -87,6 +87,12 @@ import { RealTimeScanner } from './RealTimeScanner';
 import { Header } from '../layout/Header';
 import { Sidebar } from '../layout/Sidebar';
 import { StatusBar } from '../layout/StatusBar';
+
+import { UnifiedResults } from './UnifiedResults';
+import { ClaimProfileModal } from './ClaimProfileModal';
+import { ContactModal } from '../consent/ContactModal';
+import { ConsentStatus } from '../consent/ConsentStatus';
+import type { UnifiedResult } from '../../api/endpoints/search';
 
 const ChronosSpiral = lazy(() =>
     import('./ChronosSpiral').then((m) => ({ default: m.ChronosSpiral }))
@@ -128,7 +134,7 @@ import {
     getConfidenceColor,
 } from '../../utils/formatters';
 
-type ViewMode = 'spiral' | 'grid' | 'morphing' | 'heatmap' | 'timeline' | 'network' | 'temporal';
+type ViewMode = 'spiral' | 'grid' | 'morphing' | 'heatmap' | 'timeline' | 'network' | 'temporal' | 'unified';
 type PanelTab = 'parameters' | 'statistics' | 'distributions' | 'analytics' | 'history';
 type ResultsSort = 'similarity' | 'date' | 'platform' | 'confidence';
 
@@ -169,7 +175,6 @@ interface DashboardState {
     selectedResult: SearchResult | null;
     isModalOpen: boolean;
     isSidebarOpen: boolean;
-    // ── New UI state ──
     favorites: Set<string>;
     showFavoritesOnly: boolean;
     showNotifications: boolean;
@@ -203,10 +208,12 @@ export const SearchDashboard: React.FC = () => {
     const navigate = useNavigate();
     const [, setSearchParams] = useSearchParams();
     const queryClient = useQueryClient();
-
+    const notification = useNotification();
     const { user, logout, isAuthenticated } = useAuth();
 
-    const notification = useNotification();
+    const [selectedUnifiedResult, setSelectedUnifiedResult] = useState<UnifiedResult | null>(null);
+    const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
+    const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
     const {
         initiateSearch,
@@ -224,6 +231,9 @@ export const SearchDashboard: React.FC = () => {
         isExporting,
         refreshStatus,
         refreshResults,
+        unifiedResults,
+        consentCount,
+        socialCount,
     } = useSearch();
 
     const {
@@ -240,7 +250,7 @@ export const SearchDashboard: React.FC = () => {
         timeRange: 180,
         selectedPlatforms: [],
         minConfidence: 0.68,
-        viewMode: 'spiral',
+        viewMode: 'unified',
         panelTab: 'parameters',
         sortBy: 'similarity',
         isFullscreen: false,
@@ -271,10 +281,10 @@ export const SearchDashboard: React.FC = () => {
     const parallaxY = useTransform(springY, [-1, 1], [-5, 5]);
 
     const [systemHealth, setSystemHealth] = useState<{ status: string; version: string } | null>(null);
-
     const { isConnected: wsConnected } = useWebSocket();
 
     const hasResults = results.length > 0;
+    const hasUnifiedResults = unifiedResults.length > 0;
     const canSearch = !!state.uploadedFile && !isSearchingMutation;
     const resultsCount = totalResults || storeTotalResults;
 
@@ -296,6 +306,34 @@ export const SearchDashboard: React.FC = () => {
         },
         []
     );
+
+    const handleClaimProfile = useCallback((result: UnifiedResult) => {
+        setSelectedUnifiedResult(result);
+        setIsClaimModalOpen(true);
+    }, []);
+
+    const handleContactConsent = useCallback((result: UnifiedResult) => {
+        setSelectedUnifiedResult(result);
+        setIsContactModalOpen(true);
+    }, []);
+
+    const handleViewProfile = useCallback((result: UnifiedResult) => {
+        setSelectedUnifiedResult(result);
+        setState((prev) => ({
+            ...prev,
+            selectedResult: result as any,
+            isModalOpen: true,
+        }));
+    }, []);
+
+    const handleUnifiedResultClick = useCallback((result: UnifiedResult) => {
+        setSelectedUnifiedResult(result);
+        setState((prev) => ({
+            ...prev,
+            selectedResult: result as any,
+            isModalOpen: true,
+        }));
+    }, []);
 
     useEffect(() => {
         const checkHealth = async () => {
@@ -387,7 +425,7 @@ export const SearchDashboard: React.FC = () => {
             }
 
             if (e.key === 'v' && !e.ctrlKey && !e.metaKey && hasResults) {
-                const modes: ViewMode[] = ['spiral', 'grid', 'morphing', 'heatmap', 'timeline', 'network', 'temporal'];
+                const modes: ViewMode[] = ['unified', 'spiral', 'grid', 'morphing', 'heatmap', 'timeline', 'network', 'temporal'];
                 const currentIndex = modes.indexOf(state.viewMode);
                 const nextIndex = (currentIndex + 1) % modes.length;
                 setState((prev) => ({ ...prev, viewMode: modes[nextIndex] }));
@@ -518,6 +556,7 @@ export const SearchDashboard: React.FC = () => {
             await Promise.all([
                 queryClient.invalidateQueries({ queryKey: ['search', taskId] }),
                 queryClient.invalidateQueries({ queryKey: ['search-results', taskId] }),
+                queryClient.invalidateQueries({ queryKey: ['search-unified', taskId] }),
             ]);
             await refreshStatus();
             await refreshResults();
@@ -641,7 +680,6 @@ export const SearchDashboard: React.FC = () => {
                         {formatConfidence(result.similarity)}
                     </div>
 
-                    {/* Hover actions */}
                     <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                         <button
                             onClick={(e) => {
@@ -652,8 +690,7 @@ export const SearchDashboard: React.FC = () => {
                             title="Favorite"
                         >
                             <FiHeart
-                                className={`w-3 h-3 ${isFav ? 'text-red-400 fill-red-400' : 'text-white'
-                                    }`}
+                                className={`w-3 h-3 ${isFav ? 'text-red-400 fill-red-400' : 'text-white'}`}
                             />
                         </button>
                         <button
@@ -684,9 +721,20 @@ export const SearchDashboard: React.FC = () => {
     );
 
     const renderViewContent = useMemo(() => {
-        if (!hasResults) return null;
+        if (!hasResults && !hasUnifiedResults) return null;
 
         switch (state.viewMode) {
+            case 'unified':
+                return (
+                    <UnifiedResults
+                        results={unifiedResults}
+                        onContact={handleContactConsent}
+                        onClaim={handleClaimProfile}
+                        onViewProfile={handleViewProfile}
+                        onResultClick={handleUnifiedResultClick}
+                    />
+                );
+
             case 'spiral':
                 return (
                     <div className="h-[600px] rounded-2xl overflow-hidden border border-white/5 relative">
@@ -830,12 +878,19 @@ export const SearchDashboard: React.FC = () => {
         state.viewMode,
         state.zoomLevel,
         displayedResults,
+        unifiedResults,
         hasResults,
+        hasUnifiedResults,
         isSearchingMutation,
         notification,
         handleResultClick,
         ResultWithActions,
+        handleContactConsent,
+        handleClaimProfile,
+        handleViewProfile,
+        handleUnifiedResultClick,
     ]);
+
     const renderPanelContent = useMemo(() => {
         switch (state.panelTab) {
             case 'parameters':
@@ -900,7 +955,6 @@ export const SearchDashboard: React.FC = () => {
                             />
                         </div>
 
-                        {/* Advanced */}
                         <button
                             onClick={() =>
                                 setState((prev) => ({ ...prev, showAdvanced: !prev.showAdvanced }))
@@ -1175,6 +1229,7 @@ export const SearchDashboard: React.FC = () => {
         notification,
     ]);
 
+
     return (
         <div
             ref={containerRef}
@@ -1201,7 +1256,6 @@ export const SearchDashboard: React.FC = () => {
                 )}
             </AnimatePresence>
 
-            {/* ═══ CYBERPUNK BACKGROUND LAYERS ═══ */}
             <CyberGrid
                 cellSize={40}
                 lineColor="#06b6d4"
@@ -1212,7 +1266,6 @@ export const SearchDashboard: React.FC = () => {
             />
             <Scanline speed={0.5} color="#06b6d4" intensity={0.3} animated />
 
-            {/* ═══ PARALLAX ORBS ═══ */}
             <motion.div
                 className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full pointer-events-none"
                 style={{
@@ -1230,9 +1283,6 @@ export const SearchDashboard: React.FC = () => {
                 }}
             />
 
-            {/* ═══════════════════════════════════════════════════════ */}
-            {/* HEADER */}
-            {/* ═══════════════════════════════════════════════════════ */}
             <Header
                 user={user}
                 systemHealth={systemHealth}
@@ -1242,11 +1292,7 @@ export const SearchDashboard: React.FC = () => {
                 onNavigate={(path) => navigate(path)}
             />
 
-            {/* ═══════════════════════════════════════════════════════ */}
-            {/* FLOATING: NOTIFICATIONS BELL + USER MENU */}
-            {/* ═══════════════════════════════════════════════════════ */}
             <div className="fixed top-20 right-4 z-40 flex items-center gap-2">
-                {/* Notifications */}
                 <div className="relative">
                     <button
                         onClick={() =>
@@ -1322,7 +1368,6 @@ export const SearchDashboard: React.FC = () => {
                     </AnimatePresence>
                 </div>
 
-                {/* User Menu */}
                 <div className="relative hidden lg:block">
                     <button
                         onClick={() => setState((prev) => ({ ...prev, showUserMenu: !prev.showUserMenu }))}
@@ -1364,11 +1409,21 @@ export const SearchDashboard: React.FC = () => {
                                     Settings
                                 </button>
                                 <button
+                                    onClick={() => {
+                                        setState((prev) => ({ ...prev, showUserMenu: false }));
+                                        navigate('/consent');
+                                    }}
+                                    className="w-full px-4 py-2.5 text-left text-sm text-cyan-400 hover:bg-cyan-500/10 flex items-center gap-3 transition-colors"
+                                >
+                                    <FiShield className="w-4 h-4" />
+                                    Consent Settings
+                                </button>
+                                <button
                                     onClick={() => handleSubmitFeedback}
                                     className="w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-3 transition-colors"
                                 >
-                                    <FiMessageCircle className="w-4 h-4" />
-                                    Feedback
+                                    <FiLogOut className="w-4 h-4" />
+                                    Submit Feedback
                                 </button>
                                 <button
                                     onClick={handleLogout}
@@ -1557,7 +1612,7 @@ export const SearchDashboard: React.FC = () => {
 
                         <div ref={resultsSectionRef}>
                             <AnimatePresence mode="wait">
-                                {hasResults ? (
+                                {hasUnifiedResults || hasResults ? (
                                     <motion.div
                                         key="results"
                                         initial={{ opacity: 0, y: 20 }}
@@ -1566,11 +1621,29 @@ export const SearchDashboard: React.FC = () => {
                                     >
                                         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                                             <div>
-                                                <h2 className="text-xl font-bold flex items-center gap-3">
+                                                <h2 className="text-xl font-bold flex items-center gap-3 flex-wrap">
                                                     <span className="shimmer-text">Search Results</span>
                                                     <span className="text-sm font-normal text-gray-400 bg-white/5 px-3 py-1 rounded-full border border-white/5">
-                                                        {resultsCount} matches
+                                                        {unifiedResults.length || resultsCount} matches
                                                     </span>
+
+                                                    {hasUnifiedResults && (
+                                                        <>
+                                                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 rounded-full border border-green-500/20 text-[10px] font-mono">
+                                                                <FiShield className="w-3 h-3 text-green-400" />
+                                                                <span className="text-green-400 font-bold">
+                                                                    {consentCount} CONSENT
+                                                                </span>
+                                                            </span>
+                                                            <span className="flex items-center gap-1.5 px-2.5 py-1 bg-cyan-500/10 rounded-full border border-cyan-500/20 text-[10px] font-mono">
+                                                                <FiGlobeIcon className="w-3 h-3 text-cyan-400" />
+                                                                <span className="text-cyan-400 font-bold">
+                                                                    {socialCount} SOCIAL
+                                                                </span>
+                                                            </span>
+                                                        </>
+                                                    )}
+
                                                     <span className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 rounded-full border border-white/5 text-[10px] font-mono">
                                                         {wsConnected ? (
                                                             <>
@@ -1645,6 +1718,7 @@ export const SearchDashboard: React.FC = () => {
 
                                                 <div className="hidden md:flex items-center gap-1 p-1 bg-white/5 rounded-xl border border-white/5">
                                                     {[
+                                                        { mode: 'unified', icon: <FiShield className="w-3.5 h-3.5" /> },
                                                         { mode: 'spiral', icon: <FiZap className="w-3.5 h-3.5" /> },
                                                         { mode: 'grid', icon: <FiGrid className="w-3.5 h-3.5" /> },
                                                         { mode: 'morphing', icon: <FiLayers className="w-3.5 h-3.5" /> },
@@ -1767,6 +1841,8 @@ export const SearchDashboard: React.FC = () => {
 
                     <div className="lg:col-span-4 xl:col-span-3">
                         <div className="sticky top-24 space-y-4">
+                            <ConsentStatus compact />
+
                             <GlassCard padding="sm" className="p-1">
                                 <div className="flex items-center gap-1">
                                     {[
@@ -1902,16 +1978,39 @@ export const SearchDashboard: React.FC = () => {
 
             <Suspense fallback={null}>
                 <ResultDetailModal
-                    result={state.selectedResult}
+                    result={(state.selectedResult || selectedUnifiedResult) as any}
+                    res={(state.selectedResult || selectedUnifiedResult) as any}
                     isOpen={state.isModalOpen}
-                    onClose={() =>
-                        setState((prev) => ({ ...prev, isModalOpen: false, selectedResult: null }))
-                    }
+                    onClose={() => {
+                        setState((prev) => ({ ...prev, isModalOpen: false, selectedResult: null }));
+                        setSelectedUnifiedResult(null);
+                    }}
                 />
             </Suspense>
 
-            <StatusBar />
+            <ClaimProfileModal
+                result={selectedUnifiedResult}
+                isOpen={isClaimModalOpen}
+                onClose={() => {
+                    setIsClaimModalOpen(false);
+                    setSelectedUnifiedResult(null);
+                }}
+                onClaimSuccess={() => {
+                    notification.success('Profile claimed successfully!');
+                    pushNotification('success', 'Profile claimed successfully!');
+                }}
+            />
 
+            <ContactModal
+                result={selectedUnifiedResult}
+                isOpen={isContactModalOpen}
+                onClose={() => {
+                    setIsContactModalOpen(false);
+                    setSelectedUnifiedResult(null);
+                }}
+            />
+
+            <StatusBar />
             <NotificationContainer />
         </div>
     );

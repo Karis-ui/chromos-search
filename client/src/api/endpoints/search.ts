@@ -66,6 +66,52 @@ export interface SearchStats {
     min_confidence: number;
 }
 
+export interface UnifiedResult {
+    source: 'consent' | 'social';
+    similarity: number;
+    confidence_level: string;
+    rank: number;
+    final_score: number;
+
+    profile_id?: string;
+    user_id?: string;
+    display_name?: string;
+    bio?: string;
+    location?: string;
+    occupation?: string;
+    company?: string;
+    social_links?: Record<string, string>;
+    is_verified?: boolean;
+    is_featured?: boolean;
+    allow_direct_messages?: boolean;
+
+    post_id?: string;
+    platform?: string;
+    url?: string;
+    posted_at?: string;
+    caption?: string;
+    author_username?: string;
+    likes?: number;
+    shares?: number;
+    comments?: number;
+
+    thumbnail?: string;
+    face_score?: number;
+    voice_score?: number;
+    match_type?: string;
+}
+
+export interface UnifiedResultsResponse {
+    task_id: string;
+    status: string;
+    source: 'consent' | 'social' | 'all';
+    total_count: number;
+    consent_count: number;
+    social_count: number;
+    duration_ms: number;
+    results: UnifiedResult[];
+}
+
 export const SearchApi = {
     initiate: async (data: SearchInitiateRequest): Promise<SearchInitiateResponse> => {
         const formData = new FormData();
@@ -120,6 +166,16 @@ export const SearchApi = {
 
     getStats: (taskId: string) => {
         return apiClient.get<SearchStats>(`/api/v1/search/stats/${taskId}`);
+    },
+
+    getUnifiedResults: (taskId: string, params?: { limit?: number; offset?: number; sort_by?: string }) => {
+        return apiClient.get<UnifiedResultsResponse>(`/api/v1/search/unified-results/${taskId}`, {
+            params: {
+                limit: params?.limit || 50,
+                offset: params?.offset || 0,
+                sort_by: params?.sort_by || 'similarity',
+            },
+        });
     },
 };
 

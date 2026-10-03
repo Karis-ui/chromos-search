@@ -170,6 +170,21 @@ async def _execute_search(
                 await get_redis.setex(
                     f"search:consent:{task_id}",3600,json.dumps(consent_matches)
                 )
+            
+            await redis_client.setex(
+                f"search:unified:{task_id}",3600,json.dumps(
+                    {
+                        "task_id": task_id,
+                        "status": "completed",
+                        "consent_count": result.get("consent_count", 0),
+                        "social_count": result.get("social_count", 0),
+                        "total_count": result.get("total_count", 0),
+                        "results": result["matches"][:200],
+                        "duration_ms": result.get("duration_ms", 0),
+                    },
+                    default=str
+                ),
+            )
         matches = result.get("matches", [])
         for match in matches[:50]:
             await redis_client.publish(

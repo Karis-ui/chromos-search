@@ -5,6 +5,7 @@ import searchApi from '../api/endpoints/search';
 import { useSearchStore } from '../store/searchStore';
 import { useWebSocket } from '../providers';
 import { useAuthStore } from '../store/authStore';
+import type { UnifiedResult } from '../api/endpoints/search';
 
 export const useSearch = () => {
     const queryClient = useQueryClient();
@@ -26,6 +27,11 @@ export const useSearch = () => {
     const [isExporting, setIsExporting] = useState(false);
     const { isConnected } = useWebSocket();
     const hasNotifiedRef = useRef(false);
+    const [unifiedResults, setUnifiedResults] = useState<UnifiedResult[]>([]);
+    const [consentCount, setConsentCount] = useState(0);
+    const [socialCount, setSocialCount] = useState(0);
+    const [lastMessage] = useState<any>(null);
+    const [unifiedFilter, setUnifiedFilter] = useState<'all' | 'consent' | 'social'>('all');
 
     const searchMutation = useMutation({
         mutationFn: async (data: {
@@ -74,6 +80,38 @@ export const useSearch = () => {
             return 2000;
         }
     });
+
+    const unifiedQuery = useQuery({
+        queryKey: ['search-unified', taskId, unifiedFilter],
+        queryFn: () => searchApi.getUnifiedResults(taskId!, {
+            limit: 200,
+            sort_by: unifiedFilter
+        }),
+        enabled: !!taskId && statusQuery.data?.status === 'completed',
+        staleTime: 1000 * 60 * 2,
+    });
+
+    useEffect(() => {
+        if (unifiedQuery.data) {
+            setUnifiedResults(unifiedQuery.data.results);
+            setConsentCount(unifiedQuery.data.consent_count);
+            setSocialCount(unifiedQuery.data.social_count);
+        }
+    }, [unifiedQuery.data]);
+
+    useEffect(() => {
+        if (!lastMessage) return;
+        const data = JSON.parse(lastMessage.data);
+
+        if (data.type === 'unified-result') {
+            setUnifiedResults((prev) => [...prev, data.data]);
+            if (data.data.source === 'consent') {
+                setConsentCount((c) => c + 1);
+            } else {
+                setSocialCount((c) => c + 1);
+            }
+        }
+    }, [lastMessage]);
 
 
     useEffect(() => {
@@ -179,5 +217,11 @@ export const useSearch = () => {
         updateFilters,
         refreshStatus: statusQuery.refetch,
         refreshResults: resultsQuery.refetch,
+        unifiedResults,
+        consentCount,
+        socialCount,
+        unifiedFilter,
+        setUnifiedFilter,
+        refreshUnified: unifiedQuery.refetch,
     };
 }

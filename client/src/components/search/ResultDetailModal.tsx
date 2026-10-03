@@ -16,6 +16,8 @@ import {
 } from 'react-icons/fi';
 import { getPlatformColor, formatTimeAgo, formatNumber } from '../../utils/formatters';
 import { NeonBorder } from '../common/NeonBorder';
+import type { UnifiedResult } from '../../api/endpoints/search';
+import { FiShield, FiGlobe } from 'react-icons/fi';
 
 interface ResultDetailModalProps {
     result: {
@@ -42,12 +44,13 @@ interface ResultDetailModalProps {
         hashtags?: string[];
         mentions?: string[];
     } | null;
+    res: UnifiedResult | any | null;
     isOpen: boolean;
     onClose: () => void;
 }
 
 export const ResultDetailModal: React.FC<ResultDetailModalProps> = ({
-    result, isOpen, onClose,
+    result, isOpen, onClose, res
 }) => {
     const [isLiked, setIsLiked] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -121,6 +124,25 @@ export const ResultDetailModal: React.FC<ResultDetailModalProps> = ({
 
                                 <div className="grid grid-cols-1 lg:grid-cols-2">
                                     <div className="relative aspect-[4/3] lg:aspect-auto lg:h-full bg-black/30 overflow-hidden">
+                                        {res.source && (
+                                            <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+                                                {res.source === 'consent' ? (
+                                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 backdrop-blur-xl rounded-full border border-green-500/40">
+                                                        <FiShield className="w-3 h-3 text-green-400" />
+                                                        <span className="text-[10px] font-bold text-green-400 font-mono uppercase tracking-wider">
+                                                            CONSENT PROFILE
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/20 backdrop-blur-xl rounded-full border border-cyan-500/40">
+                                                        <FiGlobe className="w-3 h-3 text-cyan-400" />
+                                                        <span className="text-[10px] font-bold text-cyan-400 font-mono uppercase tracking-wider">
+                                                            SOCIAL POST
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                         {result.thumbnail ? (
                                             <img
                                                 src={result.thumbnail}
